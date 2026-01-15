@@ -1,0 +1,185 @@
+<!-- MODAL EDITAR EVALUACIÓN -->
+<div id="modal-edit-evaluacion" class="modal-overlay hidden" onclick="closeModal('edit-evaluacion')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>✏️ Editar Evaluación</h3>
+        <div class="login-form">
+            <div class="input-group">
+                <label>Título de la evaluación</label>
+                <input type="text" id="edit-eval-titulo">
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Tipo</label>
+                    <select id="edit-eval-tipo">
+                        <option value="google">Google Forms</option>
+                        <option value="educaplay">Educaplay</option>
+                        <option value="kahoot">Kahoot</option>
+                        <option value="quizizz">Quizizz</option>
+                        <option value="presencial">Presencial</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Disponible desde</label>
+                    <input type="datetime-local" id="edit-eval-desde">
+                </div>
+                <div class="input-group">
+                    <label>Disponible hasta</label>
+                    <input type="datetime-local" id="edit-eval-hasta">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Link externo (opcional)</label>
+                <input type="url" id="edit-eval-link" placeholder="https://...">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('edit-evaluacion')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEditEvaluacion()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR EVENTO -->
+<div id="modal-edit-evento" class="modal-overlay hidden" onclick="closeModal('edit-evento')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>✏️ Editar Evento</h3>
+        <div class="login-form">
+            <div class="input-group">
+                <label>Nombre del evento</label>
+                <input type="text" id="edit-ev-nombre">
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Fecha</label>
+                    <input type="date" id="edit-ev-fecha">
+                </div>
+                <div class="input-group">
+                    <label>Cupo total</label>
+                    <input type="number" id="edit-ev-cupo" value="10">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Descripción</label>
+                <textarea id="edit-ev-desc"></textarea>
+            </div>
+            <div class="input-group">
+                <label>Tareas (una por línea: Nombre - Cupo)</label>
+                <textarea id="edit-ev-tareas" placeholder="Cocina caliente - 4&#10;Pastelería - 3"></textarea>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('edit-evento')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEditEvento()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR TRABAJO PRÁCTICO -->
+<div id="modal-edit-trabajo" class="modal-overlay hidden" onclick="closeModal('edit-trabajo')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>✏️ Editar Trabajo Práctico</h3>
+        <div class="login-form">
+            <div class="input-group">
+                <label>Título del trabajo</label>
+                <input type="text" id="edit-trabajo-titulo">
+            </div>
+            <div class="input-group">
+                <label>Descripción</label>
+                <textarea id="edit-trabajo-desc" placeholder="Descripción del trabajo práctico"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Fecha de entrega</label>
+                    <input type="date" id="edit-trabajo-fecha">
+                </div>
+                <div class="input-group">
+                    <label>Puntos</label>
+                    <input type="number" id="edit-trabajo-puntos" value="10">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Link externo (opcional)</label>
+                <input type="url" id="edit-trabajo-link" placeholder="https://...">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('edit-trabajo')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEditTrabajo()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CREAR CURSO -->
+<div id="modal-crear-curso" class="modal-overlay hidden" onclick="closeModal('crear-curso')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>➕ Crear Nuevo Curso</h3>
+        <div class="login-form">
+            <div class="input-group">
+                <label>Nombre del curso</label>
+                <input type="text" id="nuevo-curso-nombre" placeholder="Ej: Gastronomía Básica">
+            </div>
+            <div class="input-group">
+                <label>Descripción</label>
+                <textarea id="nuevo-curso-desc" placeholder="Descripción del curso"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Icono (emoji)</label>
+                    <input type="text" id="nuevo-curso-icono" placeholder="🍰" maxlength="2">
+                </div>
+                <div class="input-group">
+                    <label>Color</label>
+                    <select id="nuevo-curso-color">
+                        <option value="turquesa">Turquesa</option>
+                        <option value="verde">Verde</option>
+                        <option value="violeta">Violeta</option>
+                        <option value="fucsia">Fucsia</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('crear-curso')">Cancelar</button>
+            <button class="btn btn-success" onclick="guardarNuevoCurso()">Crear Curso</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR CURSO -->
+<div id="modal-edit-curso" class="modal-overlay hidden" onclick="closeModal('edit-curso')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>✏️ Editar Curso</h3>
+        <div class="login-form">
+            <div class="input-group">
+                <label>Nombre del curso</label>
+                <input type="text" id="edit-curso-nombre">
+            </div>
+            <div class="input-group">
+                <label>Descripción</label>
+                <textarea id="edit-curso-desc"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Icono (emoji)</label>
+                    <input type="text" id="edit-curso-icono" maxlength="2">
+                </div>
+                <div class="input-group">
+                    <label>Color</label>
+                    <select id="edit-curso-color">
+                        <option value="turquesa">Turquesa</option>
+                        <option value="verde">Verde</option>
+                        <option value="violeta">Violeta</option>
+                        <option value="fucsia">Fucsia</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('edit-curso')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEditCurso()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
