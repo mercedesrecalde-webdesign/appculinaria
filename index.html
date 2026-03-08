@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -2682,10 +2683,13 @@
             <option>Documento</option>
             <option>Presentación</option>
             <option>Video</option>
+            <option>Planilla</option>
             <option>Infografía</option>
           </select></div>
-        <div class="input-group"><label>Nombre del archivo</label><input type="text" id="cont-archivo"
-            placeholder="ejemplo.pdf"></div>
+        <div class="input-group"><label>Descripción breve (opcional)</label><input type="text" id="cont-archivo"
+            placeholder="Ej: Manual completo 2025"></div>
+        <div class="input-group"><label>🔗 Link (Google Drive, YouTube, Sheets, etc.)</label><input type="url" id="cont-url"
+            placeholder="https://drive.google.com/... o https://youtube.com/..."></div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('contenido')">Cancelar</button><button class="btn btn-primary"
@@ -3601,7 +3605,7 @@
         const { data: user, error } = await db.from('usuarios').insert({ nombre, apellido, dni, email, rol: 'alumno' }).select().single();
         if (error) { showError('registro', 'Error: ' + error.message); return; }
 
-        await db.from('inscripciones').insert({ usuario_id: user.id, curso_id: parseInt(cursoId) });
+        await db.from('inscripciones').insert({ alumno_id: user.id, curso_id: parseInt(cursoId) });
 
         currentUser = user;
         userRole = 'alumno';
@@ -3739,7 +3743,7 @@
     async function renderCursos() {
       let cursosToShow = cursos;
       if (userRole === 'alumno') {
-        const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('usuario_id', currentUser.id);
+        const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('alumno_id', currentUser.id);
         const cursosIds = inscripciones?.map(i => i.curso_id) || [];
         cursosToShow = cursos.filter(c => cursosIds.includes(c.id));
       }
@@ -3814,13 +3818,37 @@
 
     async function renderTeorico() {
       const { data } = await db.from('contenido_teorico').select('*').eq('curso_id', currentCursoId).order('orden');
-      document.getElementById('lista-teorico').innerHTML = data?.length ? data.map(c => `
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      document.getElementById('lista-teorico').innerHTML = data?.length ? data.map(c => {
+        // Icono según tipo
+        let icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>';
+        let btnTexto = 'Descargar';
+        if (c.tipo === 'Video') {
+          icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+          btnTexto = 'Ver Video';
+        } else if (c.tipo === 'Planilla') {
+          icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line></svg>';
+          btnTexto = 'Abrir';
+        } else if (c.tipo === 'Presentación') {
+          icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
+          btnTexto = 'Ver';
+        }
+        const clickAbrir = c.url ? `onclick="window.open('${c.url}', '_blank')" style="cursor:pointer;"` : '';
+        return `
         <div class="contenido-item">
-          <div class="contenido-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg></div>
-          <div class="contenido-info"><h4>${c.titulo}</h4><p>${c.tipo} • ${c.archivo_nombre || ''}</p></div>
-          <button class="btn-download">Descargar</button>
+          <div class="contenido-icon" ${clickAbrir}>${icono}</div>
+          <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
+          ${c.url ? `<button class="btn-download" onclick="window.open('${c.url}', '_blank')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
+          ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
         </div>
-      `).join('') : '<div class="empty-state"><p>No hay contenido todavía</p></div>';
+      `}).join('') : '<div class="empty-state"><p>No hay contenido todavía</p></div>';
+    }
+
+    async function eliminarContenido(id) {
+      if (!confirm('¿Eliminar este contenido?')) return;
+      await db.from('contenido_teorico').delete().eq('id', id);
+      await renderTeorico();
+      alert('✅ Eliminado');
     }
 
     async function renderRecetas() {
@@ -3865,7 +3893,7 @@
     function selFecha(dia) { selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia); renderCalendario(); renderAsistencia(); }
 
     async function renderAsistencia() {
-      const { data: inscripciones } = await db.from('inscripciones').select('usuario_id, usuarios(id, nombre, apellido)').eq('curso_id', currentCursoId);
+      const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios(id, nombre, apellido)').eq('curso_id', currentCursoId);
       const alumnos = inscripciones?.map(i => i.usuarios).filter(u => u) || [];
       const fechaStr = selectedDate.toISOString().split('T')[0];
 
@@ -4097,18 +4125,38 @@
 
     async function filtrarAlumnos() {
       const cursoId = document.getElementById('filtro-curso')?.value;
-      let query = db.from('inscripciones').select('usuario_id, curso_id, usuarios(id, nombre, apellido, dni, email), cursos(nombre, color)');
+      let query = db.from('inscripciones').select('*');
       if (cursoId) query = query.eq('curso_id', cursoId);
-      const { data } = await query;
+      const { data: inscripciones } = await query;
+      
+      if (!inscripciones?.length) {
+        document.getElementById('alumnos-lista').innerHTML = '<div class="empty-state"><p>No hay alumnos</p></div>';
+        return;
+      }
+      
+      // Obtener datos de usuarios y cursos
+      const alumnoIds = inscripciones.map(i => i.alumno_id);
+      const cursoIds = [...new Set(inscripciones.map(i => i.curso_id))];
+      
+      const { data: usuarios } = await db.from('usuarios').select('*').in('id', alumnoIds);
+      const { data: cursos } = await db.from('cursos').select('*').in('id', cursoIds);
+      
+      const usuariosMap = {};
+      usuarios?.forEach(u => usuariosMap[u.id] = u);
+      const cursosMap = {};
+      cursos?.forEach(c => cursosMap[c.id] = c);
 
-      document.getElementById('alumnos-lista').innerHTML = data?.length ? data.map(i => `
-        <div class="table-row" onclick="showPerfil('${i.usuarios?.id}')">
-          <span class="alumno-nombre"><div class="alumno-avatar">${i.usuarios?.nombre?.charAt(0) || '?'}</div>${i.usuarios?.nombre} ${i.usuarios?.apellido || ''}</span>
-          <span>${i.usuarios?.dni || '-'}</span>
-          <span>${i.usuarios?.email || ''}</span>
-          <span class="curso-tag ${i.cursos?.color || ''}">${i.cursos?.nombre?.split(' ')[0] || ''}</span>
+      document.getElementById('alumnos-lista').innerHTML = inscripciones.map(i => {
+        const u = usuariosMap[i.alumno_id] || {};
+        const c = cursosMap[i.curso_id] || {};
+        return `
+        <div class="table-row" onclick="showPerfil('${u.id}')">
+          <span class="alumno-nombre"><div class="alumno-avatar">${u.nombre?.charAt(0) || '?'}</div>${u.nombre || ''} ${u.apellido || ''}</span>
+          <span>${u.dni || '-'}</span>
+          <span>${u.email || ''}</span>
+          <span class="curso-tag ${c.color || ''}">${c.nombre?.split(' ')[0] || ''}</span>
         </div>
-      `).join('') : '<div class="empty-state"><p>No hay alumnos</p></div>';
+      `}).join('');
     }
 
     // ========== PERFIL ==========
@@ -4116,7 +4164,7 @@
       currentAlumnoId = id;
       hideViews(); show('view-perfil');
       const { data: user } = await db.from('usuarios').select('*').eq('id', id).single();
-      const { data: insc } = await db.from('inscripciones').select('cursos(nombre)').eq('usuario_id', id).single();
+      const { data: insc } = await db.from('inscripciones').select('cursos(nombre)').eq('alumno_id', id).single();
 
       document.getElementById('perfil-avatar').textContent = user?.nombre?.charAt(0) || '?';
       document.getElementById('perfil-nombre').textContent = (user?.nombre || '') + ' ' + (user?.apellido || '');
@@ -4290,13 +4338,15 @@
       alert('✅ Actualizado');
     }
 
-    function openContenidoModal() { document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; show('modal-contenido'); }
+    function openContenidoModal() { document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; show('modal-contenido'); }
     async function guardarContenido() {
       const titulo = document.getElementById('cont-titulo').value;
       const tipo = document.getElementById('cont-tipo').value;
       const archivo = document.getElementById('cont-archivo').value;
+      const url = document.getElementById('cont-url').value;
       if (!titulo) return alert('Ingresá un título');
-      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, titulo, tipo, archivo_nombre: archivo });
+      if (!url) return alert('Ingresá el link del contenido');
+      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, titulo, tipo, archivo_nombre: archivo, url: url });
       closeModal('contenido'); await renderTeorico(); alert('✅ Agregado');
     }
 
