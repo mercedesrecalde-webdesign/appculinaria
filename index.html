@@ -3974,8 +3974,8 @@
         const nombreTipo = tipoNombres[tipo] || 'Presencial';
         const tieneLink = e.link_externo && tipo !== 'presencial';
 
-        const desde = e.disponible_desde ? new Date(e.disponible_desde) : null;
-        const hasta = e.disponible_hasta ? new Date(e.disponible_hasta) : null;
+      const desde = e.disponible_desde ? new Date(e.disponible_desde.replace('+00:00', '-03:00')) : null;
+const hasta = e.disponible_hasta ? new Date(e.disponible_hasta.replace('+00:00', '-03:00')) : null;
 
         let status = 'abierto';
         let statusLabel = 'Disponible';
