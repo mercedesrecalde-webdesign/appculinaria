@@ -3944,8 +3944,8 @@
       document.getElementById('ver-receta-desc').textContent = r.notas || '';
       
       // Ingredientes
-      const ingredientes = r.ingredientes || [];
-      const ingList = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
+      const ingredientes = r.ingredientes || '';
+      const ingList = ingredientes.split('\n').filter(i => i.trim());
       document.getElementById('ver-receta-ingredientes').innerHTML = ingList.map(i => 
         `<li style="padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;"><span style="color:var(--naranja);">●</span> ${i}</li>`
       ).join('');
@@ -3978,9 +3978,9 @@
 
     function generarListaCompras() {
       if (!currentRecetaData) return;
-      const ingredientes = currentRecetaData.ingredientes || [];
-      const lista = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
-      const texto = '🛒 LISTA DE COMPRAS\n' + currentRecetaData.nombre + '\n\n' + lista.map(i => '☐ ' + i).join('\n');
+      const ingredientes = currentRecetaData.ingredientes || '';
+      const lista = ingredientes.split('\n').filter(i => i.trim());
+      const texto = '🛒 LISTA DE COMPRAS\n' + (currentRecetaData.nombre || currentRecetaData.titulo) + '\n\n' + lista.map(i => '☐ ' + i).join('\n');
       
       if (navigator.share) {
         navigator.share({ title: 'Lista de compras', text: texto });
@@ -4005,8 +4005,8 @@
     function imprimirReceta() {
       if (!currentRecetaData) return;
       const r = currentRecetaData;
-      const ingredientes = r.ingredientes || [];
-      const ingList = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
+      const ingredientes = r.ingredientes || '';
+      const ingList = ingredientes.split('\n').filter(i => i.trim());
       const insumos = (r.insumos_utensilios || '').split('\n').filter(i => i.trim());
       const pasos = (r.procedimiento || '').split('\n').filter(p => p.trim());
       
@@ -4094,9 +4094,7 @@
       editandoRecetaId = id;
       document.getElementById('rec-nombre').value = r.nombre || r.titulo || '';
       document.getElementById('rec-notas').value = r.notas || '';
-      
-      const ingredientes = r.ingredientes || [];
-      document.getElementById('rec-ingredientes').value = Array.isArray(ingredientes) ? ingredientes.join('\n') : ingredientes;
+      document.getElementById('rec-ingredientes').value = r.ingredientes || '';
       document.getElementById('rec-insumos').value = r.insumos_utensilios || '';
       document.getElementById('rec-procedimiento').value = r.procedimiento || '';
       
@@ -4662,7 +4660,7 @@
       try {
         const imagen = document.getElementById('rec-imagen-url').value;
         const notas = document.getElementById('rec-notas').value;
-        const ingredientes = document.getElementById('rec-ingredientes').value.split('\n').map(x => x.trim()).filter(x => x);
+        const ingredientes = document.getElementById('rec-ingredientes').value;
         const insumos = document.getElementById('rec-insumos').value;
         const procedimiento = document.getElementById('rec-procedimiento').value;
         
