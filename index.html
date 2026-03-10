@@ -2698,19 +2698,69 @@
   </div>
 
   <div id="modal-receta" class="modal-overlay hidden" onclick="closeModal('receta')">
-    <div class="modal-content large" onclick="event.stopPropagation()">
-      <h3>Nueva Receta</h3>
+    <div class="modal-content large" onclick="event.stopPropagation()" style="max-width:600px;max-height:90vh;overflow-y:auto;">
+      <h3>🍰 Nueva Receta</h3>
       <div class="login-form">
-        <div class="input-group"><label>Nombre</label><input type="text" id="rec-nombre"></div>
-        <div class="input-group"><label>URL Imagen (opcional)</label><input type="text" id="rec-imagen"
-            placeholder="https://..."></div>
-        <div class="input-group"><label>Ingredientes (separados por coma)</label><textarea
-            id="rec-ingredientes"></textarea></div>
-        <div class="input-group"><label>Procedimiento</label><textarea id="rec-procedimiento"></textarea></div>
+        <div class="input-group"><label>Título de la receta *</label><input type="text" id="rec-nombre" placeholder="Ej: Galletitas sonrisas"></div>
+        <div class="input-group"><label>Descripción breve</label><textarea id="rec-notas" placeholder="Una frase que describa la receta..." rows="2"></textarea></div>
+        <div class="input-group">
+          <label>📷 Foto de la receta</label>
+          <input type="file" id="rec-imagen-file" accept="image/*" onchange="comprimirImagen(this)">
+          <div id="rec-imagen-preview" style="margin-top:10px;display:none;">
+            <img id="rec-imagen-thumb" style="max-width:200px;border-radius:8px;">
+            <p id="rec-imagen-size" style="font-size:11px;color:var(--gris);margin-top:5px;"></p>
+          </div>
+          <input type="hidden" id="rec-imagen-url">
+        </div>
+        <div class="input-group">
+          <label>🥄 Ingredientes (uno por línea)</label>
+          <textarea id="rec-ingredientes" rows="6" placeholder="100g manteca&#10;75g azúcar impalpable&#10;1 yema&#10;200g harina 0000"></textarea>
+        </div>
+        <div class="input-group">
+          <label>🔧 Insumos y utensilios (uno por línea, opcional)</label>
+          <textarea id="rec-insumos" rows="3" placeholder="Cortante de cookies&#10;Manga&#10;Papel manteca"></textarea>
+        </div>
+        <div class="input-group">
+          <label>📝 Paso a paso (un paso por línea)</label>
+          <textarea id="rec-procedimiento" rows="8" placeholder="1. Cremar la manteca con el azúcar&#10;2. Agregar la yema y la esencia&#10;3. Incorporar la harina tamizada"></textarea>
+        </div>
       </div>
-      <div class="modal-actions"><button class="btn btn-secondary"
-          onclick="closeModal('receta')">Cancelar</button><button class="btn btn-primary"
-          onclick="guardarReceta()">Guardar</button></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('receta')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarReceta()" id="btn-guardar-receta">Guardar Receta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VER RECETA (para alumnos) -->
+  <div id="modal-ver-receta" class="modal-overlay hidden" onclick="closeModal('ver-receta')">
+    <div class="modal-content large" onclick="event.stopPropagation()" style="max-width:700px;max-height:90vh;overflow-y:auto;padding:0;">
+      <div id="ver-receta-header" style="position:relative;height:250px;background-size:cover;background-position:center;border-radius:12px 12px 0 0;">
+        <button onclick="closeModal('ver-receta')" style="position:absolute;top:15px;right:15px;background:rgba(255,255,255,0.9);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:18px;">✕</button>
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,rgba(0,0,0,0.7));">
+          <h2 id="ver-receta-titulo" style="color:white;margin:0;font-size:24px;"></h2>
+        </div>
+      </div>
+      <div style="padding:25px;">
+        <p id="ver-receta-desc" style="font-style:italic;color:var(--gris);margin-bottom:20px;text-align:center;"></p>
+        <div style="display:flex;gap:10px;justify-content:center;margin-bottom:25px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-small" onclick="generarListaCompras()">🛒 Lista de Compras</button>
+          <button class="btn btn-secondary btn-small" onclick="imprimirReceta()">🖨️ Imprimir</button>
+          <button class="btn btn-secondary btn-small" onclick="compartirReceta()">📤 Compartir</button>
+        </div>
+        <div style="margin-bottom:20px;">
+          <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--naranja);">🥄 INGREDIENTES</h4>
+          <ul id="ver-receta-ingredientes" style="list-style:none;padding:0;"></ul>
+        </div>
+        <div id="ver-receta-insumos-section" style="margin-bottom:20px;">
+          <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--fucsia);">🔧 INSUMOS Y UTENSILIOS</h4>
+          <ul id="ver-receta-insumos" style="list-style:none;padding:0;"></ul>
+        </div>
+        <div>
+          <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--turquesa);">📝 PASO A PASO</h4>
+          <ol id="ver-receta-pasos" style="padding-left:0;list-style:none;"></ol>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3412,7 +3462,7 @@
           // Buscar alumnos inscriptos en este curso
           const { data: inscritos, error: errInsc } = await db
             .from('inscripciones')
-            .select('usuario_id')
+            .select('alumno_id')
             .eq('curso_id', cursoId);
 
           if (errInsc) throw errInsc;
@@ -3421,7 +3471,7 @@
             alert('No hay alumnos inscriptos en este curso');
           } else {
             const notifs = inscritos.map(ins => ({
-              usuario_id: ins.usuario_id,
+              usuario_id: ins.alumno_id,
               emisor_id: currentUser.id,
               tipo: 'mensaje',
               titulo: `💬 ${asunto}`,
@@ -3431,7 +3481,7 @@
             }));
             const { error: errIns } = await db.from('notificaciones').insert(notifs);
             if (errIns) throw errIns;
-            alert('✅ Mensaje enviado al curso');
+            alert('✅ Mensaje enviado a ' + inscritos.length + ' alumnos del curso');
           }
         } else if (tipo === 'docente') {
           const docenteId = document.getElementById('msg-destino-docente').value;
@@ -3743,7 +3793,7 @@
     async function renderCursos() {
       let cursosToShow = cursos;
       if (userRole === 'alumno') {
-        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido)').eq('curso_id', currentCursoId)const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('alumno_id', currentUser.id);
+        const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('alumno_id', currentUser.id);
         const cursosIds = inscripciones?.map(i => i.curso_id) || [];
         cursosToShow = cursos.filter(c => cursosIds.includes(c.id));
       }
@@ -3852,21 +3902,255 @@
     }
 
     async function renderRecetas() {
-      const { data } = await db.from('recetas').select('*').eq('curso_id', currentCursoId).order('created_at');
+      const { data } = await db.from('recetas').select('*').eq('curso_id', currentCursoId).order('created_at', { ascending: false });
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
       document.getElementById('lista-recetas').innerHTML = data?.length ? data.map(r => `
-        <div class="receta-card">
+        <div class="receta-card" onclick="verReceta(${r.id})" style="cursor:pointer;">
           <div class="receta-imagen" style="${r.imagen_url ? 'background-image:url(' + r.imagen_url + ');background-size:cover;' : ''}">
             ${r.imagen_url ? '' : '🧁'}
-            ${isDocenteOrAdmin ? `<button class="btn-edit-img" onclick="openImagenModal(${r.id})">📷</button>` : ''}
+            ${isDocenteOrAdmin ? `<button class="btn-edit-img" onclick="event.stopPropagation();editarReceta(${r.id})">✏️</button>` : ''}
           </div>
           <div class="receta-content">
-            <h3>${r.nombre}</h3>
-            <div class="ingredientes"><h4>Ingredientes:</h4><ul>${(r.ingredientes || []).map(i => `<li>${i}</li>`).join('')}</ul></div>
-            <div class="procedimiento"><h4>Procedimiento:</h4><p>${r.procedimiento || ''}</p></div>
+            <h3>${r.nombre || r.titulo || 'Sin título'}</h3>
+            <p style="color:var(--gris);font-size:13px;">${r.notas || ''}</p>
+            ${isDocenteOrAdmin ? `
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <button class="btn btn-small btn-danger" onclick="event.stopPropagation();eliminarReceta(${r.id})">🗑️</button>
+              </div>
+            ` : ''}
           </div>
         </div>
       `).join('') : '<div class="empty-state"><p>No hay recetas todavía</p></div>';
+    }
+
+    let currentRecetaData = null;
+
+    async function verReceta(id) {
+      const { data: r } = await db.from('recetas').select('*').eq('id', id).single();
+      if (!r) return alert('No se encontró la receta');
+      currentRecetaData = r;
+      
+      // Header con imagen
+      const header = document.getElementById('ver-receta-header');
+      if (r.imagen_url) {
+        header.style.backgroundImage = 'url(' + r.imagen_url + ')';
+        header.style.backgroundColor = 'transparent';
+      } else {
+        header.style.backgroundImage = 'none';
+        header.style.backgroundColor = 'var(--turquesa)';
+      }
+      
+      document.getElementById('ver-receta-titulo').textContent = r.nombre || r.titulo || '';
+      document.getElementById('ver-receta-desc').textContent = r.notas || '';
+      
+      // Ingredientes
+      const ingredientes = r.ingredientes || [];
+      const ingList = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
+      document.getElementById('ver-receta-ingredientes').innerHTML = ingList.map(i => 
+        `<li style="padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;"><span style="color:var(--naranja);">●</span> ${i}</li>`
+      ).join('');
+      
+      // Insumos
+      const insumos = r.insumos_utensilios || '';
+      const insumosList = insumos.split('\n').filter(i => i.trim());
+      const insumosSection = document.getElementById('ver-receta-insumos-section');
+      if (insumosList.length > 0) {
+        insumosSection.style.display = 'block';
+        document.getElementById('ver-receta-insumos').innerHTML = insumosList.map(i => 
+          `<li style="padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;"><span style="color:var(--fucsia);">●</span> ${i}</li>`
+        ).join('');
+      } else {
+        insumosSection.style.display = 'none';
+      }
+      
+      // Pasos
+      const procedimiento = r.procedimiento || '';
+      const pasos = procedimiento.split('\n').filter(p => p.trim());
+      document.getElementById('ver-receta-pasos').innerHTML = pasos.map((p, idx) => 
+        `<li style="display:flex;gap:15px;margin-bottom:15px;">
+          <span style="background:var(--turquesa);color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:bold;">${idx + 1}</span>
+          <p style="flex:1;line-height:1.6;">${p.replace(/^\d+[\.\)\-]\s*/, '')}</p>
+        </li>`
+      ).join('');
+      
+      show('modal-ver-receta');
+    }
+
+    function generarListaCompras() {
+      if (!currentRecetaData) return;
+      const ingredientes = currentRecetaData.ingredientes || [];
+      const lista = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
+      const texto = '🛒 LISTA DE COMPRAS\n' + currentRecetaData.nombre + '\n\n' + lista.map(i => '☐ ' + i).join('\n');
+      
+      if (navigator.share) {
+        navigator.share({ title: 'Lista de compras', text: texto });
+      } else {
+        navigator.clipboard.writeText(texto);
+        alert('✅ Lista copiada al portapapeles');
+      }
+    }
+
+    function compartirReceta() {
+      if (!currentRecetaData) return;
+      const texto = '🍰 ' + currentRecetaData.nombre + '\n\n' + (currentRecetaData.notas || '') + '\n\nReceta de Rainero Culinaria';
+      
+      if (navigator.share) {
+        navigator.share({ title: currentRecetaData.nombre, text: texto });
+      } else {
+        navigator.clipboard.writeText(texto);
+        alert('✅ Copiado al portapapeles');
+      }
+    }
+
+    function imprimirReceta() {
+      if (!currentRecetaData) return;
+      const r = currentRecetaData;
+      const ingredientes = r.ingredientes || [];
+      const ingList = Array.isArray(ingredientes) ? ingredientes : ingredientes.split('\n').filter(i => i.trim());
+      const insumos = (r.insumos_utensilios || '').split('\n').filter(i => i.trim());
+      const pasos = (r.procedimiento || '').split('\n').filter(p => p.trim());
+      
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${r.nombre || 'Receta'}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family: 'Montserrat', sans-serif; padding:20px; max-width:800px; margin:0 auto; }
+            .header { text-align:center; margin-bottom:20px; padding-bottom:15px; border-bottom:3px solid #F39C12; }
+            .header img { width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; }
+            .header h1 { color:#F39C12; font-size:24px; margin-bottom:5px; }
+            .header p { color:#666; font-style:italic; }
+            .content { display:grid; grid-template-columns:1fr 1.5fr; gap:30px; }
+            .ingredientes h3, .insumos h3 { color:#F39C12; font-size:14px; margin-bottom:10px; border-bottom:2px solid #F39C12; padding-bottom:5px; }
+            .insumos h3 { color:#E91E63; border-color:#E91E63; }
+            .ingredientes ul, .insumos ul { list-style:none; }
+            .ingredientes li, .insumos li { padding:5px 0; border-bottom:1px solid #eee; font-size:12px; }
+            .ingredientes li:before { content:'● '; color:#F39C12; }
+            .insumos li:before { content:'● '; color:#E91E63; }
+            .pasos h3 { color:#00ACC1; font-size:14px; margin-bottom:15px; border-bottom:2px solid #00ACC1; padding-bottom:5px; }
+            .paso { display:flex; gap:10px; margin-bottom:12px; }
+            .paso-num { background:#00ACC1; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:bold; }
+            .paso p { font-size:12px; line-height:1.5; }
+            .footer { text-align:center; margin-top:20px; padding-top:15px; border-top:2px solid #00ACC1; color:#00ACC1; font-size:11px; }
+            @media print { body { padding:10px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            ${r.imagen_url ? `<img src="${r.imagen_url}" alt="">` : ''}
+            <h1>${r.nombre || 'Receta'}</h1>
+            ${r.notas ? `<p>"${r.notas}"</p>` : ''}
+          </div>
+          <div class="content">
+            <div>
+              <div class="ingredientes">
+                <h3>INGREDIENTES</h3>
+                <ul>${ingList.map(i => `<li>${i}</li>`).join('')}</ul>
+              </div>
+              ${insumos.length ? `
+                <div class="insumos" style="margin-top:20px;">
+                  <h3>INSUMOS Y UTENSILIOS</h3>
+                  <ul>${insumos.map(i => `<li>${i}</li>`).join('')}</ul>
+                </div>
+              ` : ''}
+            </div>
+            <div class="pasos">
+              <h3>PASO A PASO</h3>
+              ${pasos.map((p, idx) => `
+                <div class="paso">
+                  <span class="paso-num">${idx + 1}</span>
+                  <p>${p.replace(/^\d+[\.\)\-]\s*/, '')}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="footer">
+            ✦ WWW.RECETASENUNAPAGINA.COM - @MERBAKES - MERCEDES RECALDE ✦
+          </div>
+          <script>window.onload = () => window.print();<\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    async function eliminarReceta(id) {
+      if (!confirm('¿Eliminar esta receta?')) return;
+      await db.from('recetas').delete().eq('id', id);
+      await renderRecetas();
+      alert('✅ Receta eliminada');
+    }
+
+    let editandoRecetaId = null;
+
+    async function editarReceta(id) {
+      const { data: r } = await db.from('recetas').select('*').eq('id', id).single();
+      if (!r) return alert('No se encontró la receta');
+      
+      editandoRecetaId = id;
+      document.getElementById('rec-nombre').value = r.nombre || r.titulo || '';
+      document.getElementById('rec-notas').value = r.notas || '';
+      
+      const ingredientes = r.ingredientes || [];
+      document.getElementById('rec-ingredientes').value = Array.isArray(ingredientes) ? ingredientes.join('\n') : ingredientes;
+      document.getElementById('rec-insumos').value = r.insumos_utensilios || '';
+      document.getElementById('rec-procedimiento').value = r.procedimiento || '';
+      
+      // Mostrar imagen si existe
+      if (r.imagen_url) {
+        document.getElementById('rec-imagen-url').value = r.imagen_url;
+        document.getElementById('rec-imagen-thumb').src = r.imagen_url;
+        document.getElementById('rec-imagen-preview').style.display = 'block';
+      }
+      
+      document.querySelector('#modal-receta h3').textContent = '✏️ Editar Receta';
+      document.getElementById('btn-guardar-receta').textContent = 'Guardar Cambios';
+      show('modal-receta');
+    }
+
+    // Compresor de imagen
+    async function comprimirImagen(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const maxWidth = 800;
+      const quality = 0.7;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          document.getElementById('rec-imagen-url').value = compressedDataUrl;
+          document.getElementById('rec-imagen-thumb').src = compressedDataUrl;
+          document.getElementById('rec-imagen-preview').style.display = 'block';
+          
+          const sizeKB = Math.round(compressedDataUrl.length * 0.75 / 1024);
+          document.getElementById('rec-imagen-size').textContent = 'Tamaño: ~' + sizeKB + ' KB';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     }
 
     // ========== ASISTENCIA ==========
@@ -3893,8 +4177,15 @@
     function selFecha(dia) { selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia); renderCalendario(); renderAsistencia(); }
 
     async function renderAsistencia() {
-      const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios(id, nombre, apellido)').eq('curso_id', currentCursoId);
+      const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido)').eq('curso_id', currentCursoId);
       const alumnos = inscripciones?.map(i => i.usuarios).filter(u => u) || [];
+      // Ordenar alfabéticamente por apellido y nombre
+      alumnos.sort((a, b) => {
+        const apellidoA = (a.apellido || '').toLowerCase();
+        const apellidoB = (b.apellido || '').toLowerCase();
+        if (apellidoA !== apellidoB) return apellidoA.localeCompare(apellidoB);
+        return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+      });
       const fechaStr = selectedDate.toISOString().split('T')[0];
 
       const { data: asistencias } = await db.from('asistencias').select('*').eq('curso_id', currentCursoId).eq('fecha', fechaStr);
@@ -3974,8 +4265,8 @@
         const nombreTipo = tipoNombres[tipo] || 'Presencial';
         const tieneLink = e.link_externo && tipo !== 'presencial';
 
-      const desde = e.disponible_desde ? new Date(e.disponible_desde.replace('+00:00', '-03:00')) : null;
-const hasta = e.disponible_hasta ? new Date(e.disponible_hasta.replace('+00:00', '-03:00')) : null;
+        const desde = e.disponible_desde ? new Date(e.disponible_desde.replace('+00:00', '-03:00')) : null;
+        const hasta = e.disponible_hasta ? new Date(e.disponible_hasta.replace('+00:00', '-03:00')) : null;
 
         let status = 'abierto';
         let statusLabel = 'Disponible';
@@ -4350,15 +4641,59 @@ const hasta = e.disponible_hasta ? new Date(e.disponible_hasta.replace('+00:00',
       closeModal('contenido'); await renderTeorico(); alert('✅ Agregado');
     }
 
-    function openRecetaModal() { ['rec-nombre', 'rec-imagen', 'rec-ingredientes', 'rec-procedimiento'].forEach(id => document.getElementById(id).value = ''); show('modal-receta'); }
+    function openRecetaModal() { 
+      editandoRecetaId = null;
+      ['rec-nombre', 'rec-notas', 'rec-ingredientes', 'rec-insumos', 'rec-procedimiento'].forEach(id => document.getElementById(id).value = ''); 
+      document.getElementById('rec-imagen-url').value = '';
+      document.getElementById('rec-imagen-file').value = '';
+      document.getElementById('rec-imagen-preview').style.display = 'none';
+      document.querySelector('#modal-receta h3').textContent = '🍰 Nueva Receta';
+      document.getElementById('btn-guardar-receta').textContent = 'Guardar Receta';
+      show('modal-receta'); 
+    }
     async function guardarReceta() {
       const nombre = document.getElementById('rec-nombre').value;
-      if (!nombre) return alert('Ingresá un nombre');
-      const imagen = document.getElementById('rec-imagen').value;
-      const ingredientes = document.getElementById('rec-ingredientes').value.split(',').map(x => x.trim()).filter(x => x);
-      const procedimiento = document.getElementById('rec-procedimiento').value;
-      await db.from('recetas').insert({ curso_id: currentCursoId, nombre, imagen_url: imagen, ingredientes, procedimiento });
-      closeModal('receta'); await renderRecetas(); alert('✅ Receta agregada');
+      if (!nombre) return alert('Ingresá un nombre para la receta');
+      
+      const btn = document.getElementById('btn-guardar-receta');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+      
+      try {
+        const imagen = document.getElementById('rec-imagen-url').value;
+        const notas = document.getElementById('rec-notas').value;
+        const ingredientes = document.getElementById('rec-ingredientes').value.split('\n').map(x => x.trim()).filter(x => x);
+        const insumos = document.getElementById('rec-insumos').value;
+        const procedimiento = document.getElementById('rec-procedimiento').value;
+        
+        const recetaData = { 
+          curso_id: currentCursoId, 
+          nombre, 
+          imagen_url: imagen || null, 
+          ingredientes, 
+          procedimiento,
+          notas,
+          insumos_utensilios: insumos,
+          docente_id: currentUser.id
+        };
+        
+        if (editandoRecetaId) {
+          await db.from('recetas').update(recetaData).eq('id', editandoRecetaId);
+          alert('✅ Receta actualizada');
+        } else {
+          await db.from('recetas').insert(recetaData);
+          alert('✅ Receta agregada');
+        }
+        
+        closeModal('receta'); 
+        await renderRecetas();
+      } catch (e) {
+        console.error('Error guardando receta:', e);
+        alert('❌ Error al guardar: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = editandoRecetaId ? 'Guardar Cambios' : 'Guardar Receta';
+      }
     }
 
     function openImagenModal(id) { currentRecetaId = id; document.getElementById('img-url').value = ''; show('modal-imagen'); }
