@@ -3743,7 +3743,7 @@
     async function renderCursos() {
       let cursosToShow = cursos;
       if (userRole === 'alumno') {
-        const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('alumno_id', currentUser.id);
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido)').eq('curso_id', currentCursoId)const { data: inscripciones } = await db.from('inscripciones').select('curso_id').eq('alumno_id', currentUser.id);
         const cursosIds = inscripciones?.map(i => i.curso_id) || [];
         cursosToShow = cursos.filter(c => cursosIds.includes(c.id));
       }
