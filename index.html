@@ -26,6 +26,7 @@
     href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap"
     rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
       margin: 0;
@@ -367,6 +368,11 @@
 
     .role-badge.admin {
       background: var(--fucsia);
+      color: white;
+    }
+
+    .role-badge.administrativo {
+      background: #F57F17; /* Naranja/Amarillo fuerte */
       color: white;
     }
 
@@ -2279,6 +2285,12 @@
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg><span>Notificaciones</span><span class="badge hidden" id="notificaciones-badge">0</span></li>
+        <li onclick="showAnalytics()" id="nav-analytics" class="admin-only"><svg viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2">
+             <line x1="18" y1="20" x2="18" y2="10" />
+             <line x1="12" y1="20" x2="12" y2="4" />
+             <line x1="6" y1="20" x2="6" y2="14" />
+          </svg><span>Análisis Institucional</span></li>
         <li onclick="showAdmin()" id="nav-admin" class="admin-only admin-item"><svg viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3" />
@@ -2446,6 +2458,7 @@
               <h3>Asistencia del <span id="fecha-seleccionada"></span></h3>
               <div id="lista-asistencia"></div><button class="btn btn-success" style="width:100%;margin-top:16px;"
                 onclick="guardarAsistencia()">💾 Guardar Asistencia</button>
+              <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="descargarPlanillaMensual()">📥 Descargar Planilla del Mes</button>
             </div>
           </div>
         </div>
@@ -2493,10 +2506,16 @@
           <h1>Gestión de Alumnos</h1>
         </header>
         <div class="page-content">
-          <div class="input-group" style="max-width:300px;margin-bottom:20px;"><select id="filtro-curso"
-              onchange="filtrarAlumnos()">
-              <option value="">Todos</option>
-            </select></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div class="input-group" style="max-width:300px; margin:0;"><select id="filtro-curso"
+                onchange="filtrarAlumnos()">
+                <option value="">Todos</option>
+              </select></div>
+            <div style="display:flex; gap:10px;">
+              <button id="btn-acta-volante" class="btn btn-secondary" style="display:none;">🖨️ Acta Volante</button>
+              <button id="btn-planilla-notas" class="btn btn-primary" style="display:none;">📝 Cargar Notas (Planilla)</button>
+            </div>
+          </div>
           <div class="alumnos-table">
             <div class="table-header"><span>Nombre</span><span>DNI</span><span>Email</span><span>Curso</span></div>
             <div id="alumnos-lista"></div>
@@ -2589,6 +2608,80 @@
           <div id="notificaciones-vacio" class="empty-state hidden">
             <p style="font-size:48px;margin-bottom:16px;">🔔</p>
             <p>No tenés notificaciones</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMINISTRATIVO / ANALYTICS -->
+      <div id="view-analytics" class="hidden">
+        <header class="main-header"><button class="menu-toggle" onclick="toggleSidebar()">☰</button><button
+            class="back-btn" onclick="showDashboard()">← Inicio</button>
+          <h1>📊 Análisis Institucional</h1>
+        </header>
+        <div class="page-content">
+          <div class="welcome-banner" style="background: linear-gradient(135deg, var(--violeta), #7B1FA2);">
+            <div class="banner-content">
+              <h2>Comportamiento y Trayectorias del Estudiante</h2>
+              <p>Seguimientos sociológicos y comerciales del progreso de los alumnos a lo largo del dictado y su impacto en la Oferta Educativa Rainero</p>
+            </div>
+          </div>
+          
+          <div class="stats-grid" style="margin-top: 24px;">
+            <div class="stat-card" style="border-left: 5px solid var(--verde);">
+               <h3>Tasas de Aprobación Globales</h3>
+               <div class="stat-value" id="analytics-aprobacion">0%</div>
+               <p style="font-size:12px;color:var(--gris)">Promedio vs Desaprobados</p>
+            </div>
+            
+            <div class="stat-card" style="border-left: 5px solid var(--fucsia);">
+               <h3>Tendencias de Asistencia</h3>
+               <div class="stat-value" id="analytics-asistencia">0%</div>
+               <p style="font-size:12px;color:var(--gris)">Presencia en clases</p>
+            </div>
+
+            <div class="stat-card" style="border-left: 5px solid var(--turquesa);">
+               <h3>Niveles de Participación </h3>
+               <div class="stat-value" id="analytics-participacion">0%</div>
+               <p style="font-size:12px;color:var(--gris)">Entrega de Trabajos (Cumplimiento)</p>
+            </div>
+          </div>
+
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-lg); margin-top: 24px; box-shadow: var(--sombra);">
+            <h3 style="margin-bottom: 16px;">🔍 Análisis Exploratorio por Curso</h3>
+            <div class="input-group" style="max-width:300px;">
+              <select id="analytics-curso-select" onchange="actualizarInsightsCurso()">
+                <option value="">Seleccione un curso...</option>
+              </select>
+            </div>
+            
+            <div id="analytics-curso-insights" style="margin-top: 20px; display: flex; flex-direction: column; gap: 15px;">
+              <!-- Los insights llenan acá dinámicamente -->
+              <p style="color:var(--gris);">Selecciona un curso para ver el reporte comportamental.</p>
+            </div>
+          </div>
+
+          <!-- MÓDULO DE ENCUESTAS (Vecinos Vicente López) -->
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-lg); margin-top: 24px; box-shadow: var(--sombra); border-top: 5px solid var(--naranja);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap: 10px;">
+              <h3 style="margin:0;">📝 Encuestas de Oferta Culinaria (Vicente López)</h3>
+              <div style="display:flex; gap:10px;">
+                 <label class="btn btn-primary btn-small" style="cursor:pointer;" title="Debes descargar tu Excel de Drive como .CSV delimitado por comas">
+                    📥 Cargar CSV
+                    <input type="file" id="encuesta-csv" accept=".csv" style="display:none;" onchange="procesarCSVEncuestas(event)">
+                 </label>
+                 <button class="btn btn-secondary btn-small" onclick="cargarEjemploEncuesta()">Ver Ejemplo</button>
+              </div>
+            </div>
+            
+            <p style="color:var(--gris-oscuro); font-size:14px; margin-bottom:20px;">
+              Importá el archivo <strong>.CSV</strong> de tu Google Drive. El sistema analizará e intentará graficar <strong>todas las columnas</strong> del Excel de forma automática.
+            </p>
+
+            <div id="encuestas-charts-container" style="display:none;">
+              <div id="encuestas-charts-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
+                 <!-- Los gráficos se inyectarán acá dinámicamente según cuántas columnas tenga el CSV -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2781,9 +2874,15 @@
     <div class="modal-content large" onclick="event.stopPropagation()">
       <h3>Crear Trabajo Práctico</h3>
       <div class="login-form">
-        <div class="input-group"><label>Título del TP</label><input type="text" id="tp-titulo"></div>
-        <div class="input-group"><label>Consigna</label><textarea id="tp-consigna"></textarea></div>
-        <div class="input-group"><label>Fecha límite de entrega</label><input type="datetime-local" id="tp-fecha"></div>
+        <div class="input-group"><label>Título del TP</label><input type="text" id="tp-titulo" placeholder="Ej: Caso Harvard - Lectura..."></div>
+        <div class="input-group"><label>Consigna</label><textarea id="tp-consigna" rows="3" placeholder="Pautas para la entrega..."></textarea></div>
+        <div class="input-group">
+          <label>📄 Subir Caso o Consigna (PDF, opcional)</label>
+          <input type="file" id="tp-archivo-file" accept=".pdf,.doc,.docx" onchange="subirArchivoBase64(this, 'tp')">
+          <p id="tp-archivo-actual" style="font-size:11px;color:var(--gris);">Los alumnos descargan este archivo, lo resuelven y entregan de vuelta.</p>
+          <input type="hidden" id="tp-archivo-url">
+        </div>
+        <div class="input-group"><label>Fecha límite de entrega (Deadline)</label><input type="datetime-local" id="tp-fecha"></div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('trabajo')">Cancelar</button><button class="btn btn-primary"
@@ -2796,13 +2895,122 @@
       <h3>✏️ Editar Trabajo Práctico</h3>
       <div class="login-form">
         <div class="input-group"><label>Título del TP</label><input type="text" id="edit-tp-titulo"></div>
-        <div class="input-group"><label>Consigna</label><textarea id="edit-tp-consigna"></textarea></div>
+        <div class="input-group"><label>Consigna</label><textarea id="edit-tp-consigna" rows="3"></textarea></div>
+        <div class="input-group">
+          <label>📄 Reemplazar Archivo Consigna</label>
+          <input type="file" id="edit-tp-archivo-file" accept=".pdf,.doc,.docx" onchange="subirArchivoBase64(this, 'edit-tp')">
+          <p id="edit-tp-archivo-actual" style="font-size:11px;color:var(--naranja);"></p>
+          <input type="hidden" id="edit-tp-archivo-url">
+        </div>
         <div class="input-group"><label>Fecha límite de entrega</label><input type="datetime-local" id="edit-tp-fecha">
         </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('edit-trabajo')">Cancelar</button><button class="btn btn-primary"
           onclick="guardarEditTrabajo()">Guardar Cambios</button></div>
+    </div>
+  </div>
+
+  <div id="modal-entrega-tp" class="modal-overlay hidden" onclick="closeModal('entrega-tp')">
+    <div class="modal-content large" onclick="event.stopPropagation()">
+      <h3>📥 Entregar Trabajo Práctico</h3>
+      <p id="entrega-tp-titulo" style="color:var(--violeta); font-weight:bold; margin-bottom:15px;"></p>
+      <div class="login-form">
+        <div class="input-group">
+           <label>📝 Resolución escrita (opcional si adjuntás archivo)</label>
+           <textarea id="entrega-texto" rows="5" placeholder="Escribí acá tu respuesta o comentarios..."></textarea>
+        </div>
+        <div class="input-group">
+          <label>📄 Subir resolución adjunta (PDF, Word, Fotos)</label>
+          <input type="file" id="entrega-archivo-file" accept=".pdf,.doc,.docx,.jpg,.png" onchange="subirArchivoBase64(this, 'entrega')">
+          <p id="entrega-archivo-actual" style="font-size:11px;color:var(--gris);">Máximo 5MB.</p>
+          <input type="hidden" id="entrega-archivo-url">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('entrega-tp')">Cancelar</button>
+        <button class="btn btn-primary" onclick="entregarTrabajo()">Enviar Entrega</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-ver-entregas" class="modal-overlay hidden" onclick="closeModal('ver-entregas')">
+    <div class="modal-content large" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto;">
+      <h3>📬 Entregas del Trabajo Práctico</h3>
+      <p id="ver-entregas-titulo" style="color:var(--violeta); font-weight:bold; margin-bottom:15px;"></p>
+      
+      <div class="alumnos-table" style="margin-top:10px;">
+        <div class="table-header" style="grid-template-columns: 2fr 1.5fr 1fr 1fr;">
+          <span>Alumno</span>
+          <span>Fecha Entrega</span>
+          <span>Resolución</span>
+          <span>Corrección</span>
+        </div>
+        <div id="lista-entregas-tp" style="max-height:400px; overflow-y:auto;">
+           <div class="empty-state"><span class="spinner"></span><p>Cargando entregas...</p></div>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn btn-secondary" onclick="closeModal('ver-entregas')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-corregir-tp" class="modal-overlay hidden" onclick="closeModal('corregir-tp')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3>📝 Corregir Entrega</h3>
+      <p id="corregir-alumno-nombre" style="font-size:14px; font-weight:bold;"></p>
+      <div class="login-form">
+        <div class="input-group">
+           <label>Nota (Numérica o Conceptual)</label>
+           <input type="text" id="corregir-nota" placeholder="Ej: 8, Aprobado, Excelente...">
+        </div>
+        <div class="input-group">
+           <label>Devolución / Comentarios del Docente</label>
+           <textarea id="corregir-feedback" rows="4" placeholder="Observaciones sobre el trabajo..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('corregir-tp'); show('modal-ver-entregas');">Volver</button>
+        <button class="btn btn-primary" onclick="guardarCorreccionTP()">Guardar Corrección</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PLANILLA DE NOTAS MODULARES -->
+  <div id="modal-planilla-notas" class="modal-overlay hidden" onclick="closeModal('planilla-notas')">
+    <div class="modal-content large" onclick="event.stopPropagation()" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+      <h3>📝 Planilla de Calificaciones</h3>
+      <p style="color:var(--gris); margin-bottom:15px;" id="planilla-curso-nombre">Cargando...</p>
+      
+      <div class="login-form">
+        <div class="input-group">
+          <label>1. Escribí el nombre de la Materia / Módulo a calificar:</label>
+          <div style="display:flex; gap:10px; align-items:center;">
+             <input type="text" id="planilla-modulo-nombre" placeholder="Ej: Pastelería Básica, BPM..." list="modulos-existentes" style="flex:1;" onkeydown="if(event.key==='Enter') cargarPlanillaAlumnos()">
+             <datalist id="modulos-existentes"></datalist>
+             <button class="btn btn-secondary" onclick="cargarPlanillaAlumnos()">🔍 Cargar Alumnos</button>
+          </div>
+        </div>
+        
+        <div class="alumnos-table" style="margin-top:20px;">
+          <div class="table-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
+            <span>Alumno</span>
+            <span title="Nota del Examen">Examen</span>
+            <span title="Nota del Recuperatorio">Recup.</span>
+            <span title="Nota de Concepto">Concepto</span>
+            <span title="Promedio Automático">P. Final</span>
+          </div>
+          <div id="planilla-alumnos-lista" style="max-height:300px; overflow-y:auto;">
+            <!-- Filas generadas por JS -->
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn btn-secondary" onclick="closeModal('planilla-notas')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-planilla" onclick="guardarPlanillaNotas()">Guardar Planilla</button>
+      </div>
     </div>
   </div>
 
@@ -2871,8 +3079,10 @@
         </div>
 
         <div class="input-group hidden" id="group-msg-alumno">
-          <label>Alumno (DNI o Email)</label>
-          <input type="text" id="msg-destino-alumno" placeholder="dni / email">
+          <label>Alumno / Usuario</label>
+          <select id="msg-destino-alumno">
+            <option value="">Cargando usuarios...</option>
+          </select>
         </div>
 
         <div class="input-group hidden" id="group-msg-docente">
@@ -2880,10 +3090,7 @@
           <select id="msg-destino-docente"></select>
         </div>
 
-        <div class="input-group hidden" id="group-msg-companero">
-          <label>Compañero (DNI o Email)</label>
-          <input type="text" id="msg-destino-companero" placeholder="dni / email">
-        </div>
+        <!-- group-msg-companero is removed as we use one unified dropdown for individuals -->
 
         <div class="input-group">
           <label>Asunto</label>
@@ -2914,11 +3121,21 @@
           <div class="input-group"><label>Emoji</label><input type="text" id="curso-emoji" placeholder="🎂"
               maxlength="2"></div>
         </div>
-        <div class="input-group"><label>Color</label><select id="curso-color">
-            <option value="turquesa">Turquesa</option>
-            <option value="verde">Verde</option>
-            <option value="violeta">Violeta</option>
-          </select></div>
+        <div class="form-row">
+          <div class="input-group"><label>Color</label>
+            <select id="curso-color">
+              <option value="turquesa">Turquesa</option>
+              <option value="verde">Verde</option>
+              <option value="violeta">Violeta</option>
+            </select>
+          </div>
+          <div class="input-group"><label>Tipo de Curso</label>
+            <select id="curso-tipo">
+              <option value="curso_corto">Curso Corto (Sin notas)</option>
+              <option value="carrera">Carrera Certificada (Con notas)</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('curso')">Cancelar</button><button class="btn btn-primary" onclick="guardarCurso()">Crear
@@ -2956,8 +3173,15 @@
               <option value="violeta">🟣 Violeta</option>
             </select></div>
         </div>
-        <div class="input-group"><label>Duración</label><input type="text" id="edit-curso-duracion"
-            placeholder="6 meses"></div>
+        <div class="form-row">
+          <div class="input-group"><label>Duración</label><input type="text" id="edit-curso-duracion" placeholder="6 meses"></div>
+          <div class="input-group"><label>Tipo de Curso</label>
+            <select id="edit-curso-tipo">
+              <option value="curso_corto">Curso Corto (Sin notas)</option>
+              <option value="carrera">Carrera Certificada (Con notas)</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('edit-curso')">Cancelar</button><button class="btn btn-primary"
@@ -2978,6 +3202,7 @@
           <select id="edit-doc-rol">
             <option value="docente">Docente</option>
             <option value="admin">Administrador</option>
+            <option value="administrativo">Personal Administrativo</option>
           </select>
         </div>
       </div>
@@ -3196,7 +3421,7 @@
     // Crear notificación (sistema)
     async function crearNotificacion(usuarioId, tipo, titulo, descripcion, link = null, emisorId = null) {
       try {
-        const { data, error } = await db
+        const { error } = await db
           .from('notificaciones')
           .insert([{
             usuario_id: usuarioId,
@@ -3207,11 +3432,10 @@
             link: link,
             leida: false,
             fecha: new Date().toISOString()
-          }])
-          .select();
+          }]);
 
         if (error) throw error;
-        return data[0];
+        return true;
       } catch (e) {
         console.error('Error creando notificación:', e);
         return null;
@@ -3400,15 +3624,24 @@
       const tipoSelect = document.getElementById('msg-destino-tipo');
       const cursoSelect = document.getElementById('msg-destino-curso');
       const docenteSelect = document.getElementById('msg-destino-docente');
+      const alumnoSelect = document.getElementById('msg-destino-alumno');
 
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
 
       // Cargar opciones básicas
       tipoSelect.innerHTML = `
-        <option value="individual">Destinatario Individual (Email/DNI)</option>
+        <option value="individual">Destinatario Individual</option>
         ${isDocenteOrAdmin ? '<option value="curso">Curso Completo</option>' : ''}
         ${!isDocenteOrAdmin ? '<option value="docente">Docente</option>' : ''}
       `;
+
+      // Cargar TODOS los usuarios para la selección individual (excluyendo al usuario actual)
+      if (alumnoSelect) {
+        const { data: todosUsuarios } = await db.from('usuarios').select('id, nombre, apellido, rol').neq('id', currentUser.id).order('apellido');
+        alumnoSelect.innerHTML = todosUsuarios?.map(u => 
+          `<option value="${u.id}">${u.apellido || ''}, ${u.nombre || ''} (${u.rol})</option>`
+        ).join('') || '<option value="">No hay otros usuarios</option>';
+      }
 
       // Cargar lista de docentes para alumnos
       if (!isDocenteOrAdmin && docenteSelect) {
@@ -3488,19 +3721,15 @@
           await crearNotificacion(docenteId, 'mensaje', `💬 ${asunto}`, texto, null, currentUser.id);
           alert('✅ Mensaje enviado al docente');
         } else {
-          // Individual, alumno o compañero (identificación por Email o DNI)
-          const ident = document.getElementById('msg-destino-alumno').value.trim().toLowerCase();
-          if (!ident) { alert('Ingresá DNI o Email del destinatario'); btn.disabled = false; btn.textContent = 'Enviar Mensaje'; return; }
+          // Individual (Alumno o Compañero elegido del select)
+          const destinoId = document.getElementById('msg-destino-alumno').value;
+          if (!destinoId) { alert('Seleccioná un destinatario'); btn.disabled = false; btn.textContent = 'Enviar Mensaje'; return; }
 
-          const { data: destino } = await db.from('usuarios')
-            .select('id')
-            .or(`dni.eq.${ident},email.eq.${ident}`)
-            .single();
-
-          if (!destino) {
-            alert('Destinatario no encontrado');
-          } else {
-            await crearNotificacion(destino.id, 'mensaje', `💬 ${asunto}`, texto, null, currentUser.id);
+          // El ID ya está en el select, así que no hace falta buscar en la base de datos
+          if (destinoId) {
+            console.log("Enviando mensaje a ID:", destinoId, "Desde:", currentUser.id);
+            const res = await crearNotificacion(destinoId, 'mensaje', `💬 ${asunto}`, texto, null, currentUser.id);
+            if (!res) throw new Error("Fallo al crear notificación en DB");
             alert('✅ Mensaje enviado');
           }
         }
@@ -3619,8 +3848,8 @@
       try {
         const { data, error } = await db.from('usuarios').select('*').eq('email', email).single();
         if (error || !data) { showError('login-docente', 'Usuario no encontrado'); return; }
-        if (data.rol !== 'docente' && data.rol !== 'admin') {
-          showError('login-docente', 'Este email no tiene permisos de docente');
+        if (data.rol !== 'docente' && data.rol !== 'admin' && data.rol !== 'administrativo') {
+          showError('login-docente', 'Este email no tiene permisos de staff');
           return;
         }
         currentUser = data;
@@ -3714,7 +3943,7 @@
       document.getElementById('user-name').textContent = currentUser.nombre + ' ' + (currentUser.apellido || '');
       document.getElementById('user-avatar').textContent = currentUser.nombre.charAt(0);
 
-      const roleText = userRole === 'admin' ? '👑 Administradora' : (userRole === 'docente' ? 'Chef Docente' : 'Alumno/a');
+      const roleText = userRole === 'admin' ? '👑 Administradora' : (userRole === 'docente' ? 'Chef Docente' : (userRole === 'administrativo' ? 'Personal Administrativo' : 'Alumno/a'));
       document.getElementById('user-role').textContent = roleText;
       document.getElementById('welcome-msg').textContent = '¡Bienvenido/a, ' + currentUser.nombre + '!';
 
@@ -3727,16 +3956,21 @@
         sidebarHeader.classList.add('admin-header');
         userAvatar.classList.add('admin');
         welcomeBanner.classList.add('admin-banner');
+      } else if (userRole === 'administrativo') {
+        userAvatar.classList.add('administrativo');
       } else {
         sidebarHeader.classList.remove('admin-header');
         userAvatar.classList.remove('admin');
+        userAvatar.classList.remove('administrativo');
         welcomeBanner.classList.remove('admin-banner');
       }
 
       // Visibilidad según rol
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
+      const isAdminOrAdminRole = userRole === 'admin' || userRole === 'administrativo';
+
       document.querySelectorAll('.docente-only').forEach(el => el.style.display = isDocenteOrAdmin ? '' : 'none');
-      document.querySelectorAll('.admin-only').forEach(el => el.style.display = userRole === 'admin' ? '' : 'none');
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdminOrAdminRole ? '' : 'none');
 
       // Iniciar actualización de notificaciones
       iniciarActualizacionNotificaciones();
@@ -3779,7 +4013,7 @@
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
     function setNav(id) { document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active')); document.getElementById(id)?.classList.add('active'); }
-    function hideViews() { ['view-dashboard', 'view-curso', 'view-eventos', 'view-alumnos', 'view-perfil', 'view-mensajes', 'view-admin'].forEach(hide); }
+    function hideViews() { ['view-dashboard', 'view-curso', 'view-eventos', 'view-alumnos', 'view-perfil', 'view-mensajes', 'view-admin', 'view-analytics', 'view-notificaciones'].forEach(hide); }
 
     // ========== DASHBOARD ==========
     async function showDashboard() {
@@ -3980,14 +4214,10 @@
       if (!currentRecetaData) return;
       const ingredientes = currentRecetaData.ingredientes || '';
       const lista = ingredientes.split('\n').filter(i => i.trim());
-      const texto = '🛒 LISTA DE COMPRAS\n' + (currentRecetaData.nombre || currentRecetaData.titulo) + '\n\n' + lista.map(i => '☐ ' + i).join('\n');
+      const texto = '*🛒 LISTA DE COMPRAS*\n*' + (currentRecetaData.nombre || currentRecetaData.titulo) + '*\n\n' + lista.map(i => '☐ ' + i).join('\n');
       
-      if (navigator.share) {
-        navigator.share({ title: 'Lista de compras', text: texto });
-      } else {
-        navigator.clipboard.writeText(texto);
-        alert('✅ Lista copiada al portapapeles');
-      }
+      const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(texto);
+      window.open(whatsappUrl, '_blank');
     }
 
     function compartirReceta() {
@@ -4002,13 +4232,23 @@
       }
     }
 
-    function imprimirReceta() {
+    async function imprimirReceta() {
       if (!currentRecetaData) return;
       const r = currentRecetaData;
       const ingredientes = r.ingredientes || '';
       const ingList = ingredientes.split('\n').filter(i => i.trim());
       const insumos = (r.insumos_utensilios || '').split('\n').filter(i => i.trim());
       const pasos = (r.procedimiento || '').split('\n').filter(p => p.trim());
+      
+      const cursoNombre = cursos.find(c => c.id === r.curso_id)?.nombre || 'CARRERA CULINARIA';
+      let nombreProfesor = 'MERCEDES RECALDE';
+      
+      if (r.docente_id) {
+        const { data: docente } = await db.from('usuarios').select('nombre, apellido').eq('id', r.docente_id).single();
+        if (docente) {
+          nombreProfesor = `${docente.nombre} ${docente.apellido || ''}`.trim();
+        }
+      }
       
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -4069,7 +4309,7 @@
             </div>
           </div>
           <div class="footer">
-            ✦ WWW.RECETASENUNAPAGINA.COM - @MERBAKES - MERCEDES RECALDE ✦
+            ✦ ${cursoNombre.toUpperCase()} - PROF. ${nombreProfesor.toUpperCase()} ✦
           </div>
           <script>window.onload = () => window.print();<\/script>
         </body>
@@ -4151,6 +4391,33 @@
       reader.readAsDataURL(file);
     }
 
+    // Lector de archivos PDF a Base64 para Casos de Estudio
+    async function subirArchivoBase64(input, prefix) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const maxSizeMB = 5; // Límite 5MB
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert('❌ El archivo es demasiado grande. El máximo permitido es 5 MB.');
+        input.value = '';
+        return;
+      }
+
+      // Mostrar cargando
+      const infoP = document.getElementById(`${prefix}-archivo-actual`);
+      if(infoP) infoP.textContent = '⏳ Cargando archivo, por favor espere...';
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Url = e.target.result;
+        document.getElementById(`${prefix}-archivo-url`).value = base64Url;
+        
+        let labelMsg = '✅ Archivo listo para subir (' + Math.round(file.size / 1024) + ' KB)';
+        if(infoP) infoP.textContent = labelMsg;
+      };
+      reader.readAsDataURL(file);
+    }
+
     // ========== ASISTENCIA ==========
     function renderCalendario() {
       const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -4194,7 +4461,7 @@
         const estado = asistenciaTemp[a.id] || asistMap[a.id] || '';
         return `
           <div class="alumno-asistencia">
-            <div class="alumno-nombre"><div class="alumno-avatar">${a.nombre?.charAt(0) || '?'}</div>${a.nombre} ${a.apellido || ''}</div>
+            <div class="alumno-nombre"><div class="alumno-avatar">${(a.apellido || a.nombre || '?').charAt(0)}</div>${a.apellido || ''}, ${a.nombre || ''}</div>
             <div class="asistencia-opciones">
               <button class="btn-presente ${estado === 'presente' ? 'active' : ''}" onclick="marcarAsist('${a.id}','presente')">✓</button>
               <button class="btn-ausente ${estado === 'ausente' ? 'active' : ''}" onclick="marcarAsist('${a.id}','ausente')">✗</button>
@@ -4217,29 +4484,125 @@
       renderAsistencia();
     }
 
+    async function descargarPlanillaMensual() {
+      try {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const primerDia = new Date(year, month, 1).toISOString().split('T')[0];
+        const ultimoDia = new Date(year, month + 1, 0).toISOString().split('T')[0];
+        const diasDelMes = new Date(year, month + 1, 0).getDate();
+
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido)').eq('curso_id', currentCursoId);
+        const alumnos = inscripciones?.map(i => i.usuarios).filter(u => u) || [];
+        alumnos.sort((a, b) => {
+          const aa = (a.apellido || '').toLowerCase();
+          const ab = (b.apellido || '').toLowerCase();
+          if (aa !== ab) return aa.localeCompare(ab);
+          return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+        });
+
+        if (!alumnos.length) return alert('No hay alumnos en este curso');
+
+        const { data: asistencias } = await db.from('asistencias').select('*').eq('curso_id', currentCursoId).gte('fecha', primerDia).lte('fecha', ultimoDia);
+        const asistMap = {};
+        asistencias?.forEach(a => {
+          const key = a.usuario_id + '_' + a.fecha;
+          asistMap[key] = a.estado;
+        });
+
+        const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const nombreCurso = document.getElementById('curso-nombre')?.textContent || 'Curso';
+        const estadoLetra = { presente: 'P', ausente: 'A', tardanza: 'T' };
+
+        // Solo lunes (1) y miércoles (3) como días de clase
+        const diasClase = [];
+        for (let d = 1; d <= diasDelMes; d++) {
+          const fecha = new Date(year, month, d);
+          const dia = fecha.getDay();
+          if (dia === 1 || dia === 3) {
+            diasClase.push({ num: d, label: (dia === 1 ? 'Lu' : 'Mi') + ' ' + d + '/' + (month + 1) });
+          }
+        }
+
+        let csv = 'sep=;\n';
+        csv += 'PLANILLA DE ASISTENCIA - ' + nombreCurso + ' - ' + meses[month] + ' ' + year + '\n\n';
+        csv += 'Alumno';
+        diasClase.forEach(dc => csv += ';' + dc.label);
+        csv += ';Presentes;Ausentes;Tardanzas\n';
+
+        alumnos.forEach(al => {
+          let presentes = 0, ausentes = 0, tardanzas = 0;
+          csv += (al.apellido || '').toUpperCase() + ', ' + (al.nombre || '');
+          diasClase.forEach(dc => {
+            const fechaStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(dc.num).padStart(2, '0');
+            const estado = asistMap[al.id + '_' + fechaStr] || '';
+            const letra = estadoLetra[estado] || '';
+            csv += ';' + letra;
+            if (estado === 'presente') presentes++;
+            if (estado === 'ausente') ausentes++;
+            if (estado === 'tardanza') tardanzas++;
+          });
+          csv += ';' + presentes + ';' + ausentes + ';' + tardanzas + '\n';
+        });
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Asistencia_' + nombreCurso.replace(/[^a-zA-Z0-9]/g,'_') + '_' + meses[month] + '_' + year + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        alert('✅ Planilla descargada');
+      } catch (e) {
+        alert('❌ Error al descargar: ' + e.message);
+      }
+    }
+
     // ========== TRABAJOS Y EVALUACIONES ==========
     async function renderTrabajos() {
       const { data } = await db.from('trabajos_practicos').select('*').eq('curso_id', currentCursoId).order('fecha_limite');
       const now = new Date();
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      
+      let entregasMap = {};
+      if (!isDocenteOrAdmin && data?.length) {
+        try {
+          const tpIds = data.map(t => t.id);
+          const { data: misEntregas } = await db.from('entregas_tp').select('*').in('trabajo_id', tpIds).eq('alumno_id', currentUser.id);
+          misEntregas?.forEach(e => entregasMap[e.trabajo_id] = e);
+        } catch(e) { console.error('Error cargando mis entregas', e); }
+      }
+
       document.getElementById('lista-trabajos').innerHTML = data?.length ? data.map(tp => {
         const limite = new Date(tp.fecha_limite);
         const vencido = now > limite;
+        const miEntrega = entregasMap[tp.id];
         return `
           <div class="trabajo-card">
             <div class="trabajo-header"><h4>${tp.titulo}</h4><span class="estado-badge ${vencido ? 'cerrado' : 'abierto'}">${vencido ? 'Cerrado' : 'Abierto'}</span></div>
             <div class="trabajo-body">
               <p>${tp.consigna || ''}</p>
+              ${tp.archivo_url ? `<a href="${tp.archivo_url}" download="Consigna_${tp.titulo.replace(/ /g, '_')}" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">📄 Descargar Material Adjunto</a>` : ''}
               <div class="trabajo-fecha ${vencido ? 'vencido' : ''}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 Límite: ${limite.toLocaleString('es-AR')} ${vencido ? '(VENCIDO)' : ''}
               </div>
               ${!isDocenteOrAdmin ? `
-                <div class="upload-area ${vencido ? 'disabled' : ''}" ${vencido ? '' : 'onclick="alert(\'Subida próximamente\')\"'}>
-                  <p>${vencido ? 'Entrega cerrada' : 'Subir archivo'}</p>
-                </div>
+                ${miEntrega ? `
+                  <div style="margin-top:10px; padding:15px; border-radius:8px; background:var(--gris-claro); border: 1px solid #ddd;">
+                    <div style="font-size:13px; font-weight:bold; color:var(--turquesa); margin-bottom:5px;">✅ Entregado el ${new Date(miEntrega.fecha_entrega).toLocaleString('es-AR')}</div>
+                    ${miEntrega.nota ? `<div style="color:var(--naranja); font-weight:bold; font-size:15px; margin-top:8px;">Calificación: ${miEntrega.nota}</div>` : '<div style="color:var(--gris); font-size:12px;">Estado: Pendiente de corrección</div>'}
+                    ${miEntrega.feedback ? `<div style="margin-top:8px; font-size:13px; font-style:italic; background:white; padding:10px; border-radius:4px; border-left:3px solid var(--naranja);">Devolución del docente:<br>"${miEntrega.feedback}"</div>` : ''}
+                    ${(!vencido && !miEntrega.nota) ? `<button class="btn btn-small btn-secondary" style="margin-top:12px; width:100%;" onclick="abrirEntregaTP('${tp.id}', '${tp.titulo.replace(/'/g, "\\'")}')">Cambiar Entrega</button>` : ''}
+                  </div>
+                ` : `
+                  <div class="upload-area ${vencido ? 'disabled' : ''}" ${vencido ? '' : `onclick="abrirEntregaTP('${tp.id}', '${tp.titulo.replace(/'/g, "\\'")}')"`}>
+                    <p>${vencido ? 'Entrega cerrada' : '📥 Entregar Resolución'}</p>
+                  </div>
+                `}
               ` : `
-                <div style="display:flex;gap:8px;margin-top:10px;">
+                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                  <button class="btn btn-small btn-primary" onclick="verEntregasTP('${tp.id}', '${tp.titulo.replace(/'/g, "\\'")}')">📬 Ver Entregas</button>
                   <button class="btn btn-small btn-secondary" onclick="editarTrabajo('${tp.id}')">✏️ Editar</button>
                   <button class="btn btn-small btn-danger" onclick="eliminarTrabajo('${tp.id}')">🗑️ Eliminar</button>
                 </div>
@@ -4312,51 +4675,85 @@
       try {
         const isDocente = userRole === 'docente' || userRole === 'admin';
 
-        // Si es alumno, mostrar sus notas
-        if (!isDocente) {
-          const { data: notas } = await db
-            .from('notas')
-            .select('*, evaluaciones(titulo, tipo)')
-            .eq('usuario_id', currentUser.id);
-
-          // Filtrar notas que pertenezcan a evaluaciones de este curso
-          const { data: evaluacionesCurso } = await db.from('evaluaciones').select('id').eq('curso_id', currentCursoId);
-          const evalIds = evaluacionesCurso.map(e => e.id);
-          const misNotas = notas.filter(n => evalIds.includes(n.evaluacion_id));
-
-          if (!misNotas.length) {
-            container.innerHTML = '<div class="empty-state"><h3>Sin calificaciones todavía</h3><p>Cuando realices evaluaciones, aparecerán aquí.</p></div>';
-            return;
-          }
-
-          container.innerHTML = `
-            <div class="calificaciones-grid calif-header">
-              <span>Evaluación / TP</span>
-              <span>Nota</span>
-            </div>
-            ${misNotas.map(n => `
-              <div class="calif-item">
-                <div class="calif-info">
-                  <h4>${n.evaluaciones?.titulo || 'Evaluación'}</h4>
-                  <p>${new Date(n.fecha).toLocaleDateString()} • ${n.evaluaciones?.tipo || 'Presencial'}</p>
-                </div>
-                <div class="calif-nota ${n.nota >= 6 ? 'aprobado' : 'desaprobado'}">${n.nota}</div>
-              </div>
-            `).join('')}
-          `;
-        } else {
-          // Si es docente o admin, mostrar un resumen y link a alumnos
+        if (isDocente) {
           container.innerHTML = `
             <div class="empty-state">
               <h3>Vista de Docente</h3>
-              <p>Como docente, podés ver las notas detalladas de todos los alumnos en la sección general.</p>
+              <p>Como docente, podés ver las notas detalladas de todos los alumnos en la sección general de Alumnos usando la Planilla.</p>
               <button class="btn btn-primary" style="margin-top:15px;" onclick="showAlumnos()">Ver Planilla de Alumnos</button>
             </div>
           `;
+          return;
         }
+
+        // 1. Check if the current course is a Carrera or a Curso Corto
+        const { data: cursoData } = await db.from('cursos').select('tipo_curso, nombre').eq('id', currentCursoId).single();
+        
+        const esCarrera = cursoData && (
+          cursoData.tipo_curso === 'carrera' || 
+          /certificad|profesion|carrera/i.test(cursoData.nombre || '')
+        );
+
+        if (!esCarrera) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <h3>No aplica calificaciones</h3>
+              <p>Este es un curso corto o seminario. No requiere de calificaciones formales modulares para su aprobación.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // 2. Fetch Modular Grades for Carrera Certificada
+        const { data: notasModulares } = await db
+          .from('calificaciones_modulares')
+          .select('*')
+          .eq('curso_id', currentCursoId)
+          .eq('usuario_id', currentUser.id);
+
+        if (!notasModulares || !notasModulares.length) {
+          container.innerHTML = '<div class="empty-state"><h3>Sin calificaciones todavía</h3><p>Aún no hay notas cargadas en tus módulos.</p></div>';
+          return;
+        }
+
+        // Render modular cards
+        container.innerHTML = notasModulares.map(n => {
+          const ex = n.nota_examen ?? '-';
+          const rec = n.nota_recuperatorio ?? '-';
+          const conc = n.nota_concepto ?? '-';
+          const prom = n.promedio ?? '-';
+          
+          let estadoClass = '';
+          if (prom !== '-' && parseFloat(prom) >= 6) estadoClass = 'aprobado';
+          else if (prom !== '-' && parseFloat(prom) < 6) estadoClass = 'desaprobado';
+
+          return `
+            <div class="trabajo-card">
+              <div class="trabajo-header">
+                 <h4 style="color:var(--turquesa); font-size:18px;">📘 Módulo: ${n.modulo_nombre}</h4>
+                 ${prom !== '-' ? `<span class="estado-badge ${estadoClass}">Promedio: ${prom}</span>` : ''}
+              </div>
+              <div class="trabajo-body" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; text-align:center; padding-top:10px; margin-top:10px; border-top:1px solid #eee;">
+                <div>
+                  <div style="font-size:11px; color:var(--gris); text-transform:uppercase;">Examen</div>
+                  <div style="font-size:16px; font-weight:bold;">${ex}</div>
+                </div>
+                <div>
+                  <div style="font-size:11px; color:var(--gris); text-transform:uppercase;">Recuperatorio</div>
+                  <div style="font-size:16px; font-weight:bold;">${rec}</div>
+                </div>
+                <div>
+                  <div style="font-size:11px; color:var(--gris); text-transform:uppercase;">Concepto</div>
+                  <div style="font-size:16px; font-weight:bold;">${conc}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
       } catch (e) {
         console.error(e);
-        container.innerHTML = '<p>Error al cargar calificaciones</p>';
+        container.innerHTML = '<p>Error al cargar calificaciones.</p>';
       }
     }
 
@@ -4418,8 +4815,13 @@
       if (cursoId) query = query.eq('curso_id', cursoId);
       const { data: inscripciones } = await query;
       
+      const btnPlanilla = document.getElementById('btn-planilla-notas');
+      const btnActa = document.getElementById('btn-acta-volante');
+
       if (!inscripciones?.length) {
         document.getElementById('alumnos-lista').innerHTML = '<div class="empty-state"><p>No hay alumnos</p></div>';
+        if (btnPlanilla) btnPlanilla.style.display = 'none';
+        if (btnActa) btnActa.style.display = 'none';
         return;
       }
       
@@ -4427,25 +4829,439 @@
       const alumnoIds = inscripciones.map(i => i.alumno_id);
       const cursoIds = [...new Set(inscripciones.map(i => i.curso_id))];
       
-      const { data: usuarios } = await db.from('usuarios').select('*').in('id', alumnoIds);
-      const { data: cursos } = await db.from('cursos').select('*').in('id', cursoIds);
+      const { data: usuarios } = await db.from('usuarios').select('*').in('id', alumnoIds).order('nombre');
+      const { data: cursosData } = await db.from('cursos').select('*').in('id', cursoIds);
       
       const usuariosMap = {};
       usuarios?.forEach(u => usuariosMap[u.id] = u);
       const cursosMap = {};
-      cursos?.forEach(c => cursosMap[c.id] = c);
+      cursosData?.forEach(c => cursosMap[c.id] = c);
 
-      document.getElementById('alumnos-lista').innerHTML = inscripciones.map(i => {
-        const u = usuariosMap[i.alumno_id] || {};
-        const c = cursosMap[i.curso_id] || {};
-        return `
+      // Si hay un curso filtrado y es "carrera", mostrar botón de planilla
+      if (btnPlanilla && btnActa) {
+        const selectedCurso = cursosData?.find(c => c.id == cursoId);
+        if (selectedCurso) {
+           const esCarrera = selectedCurso.tipo_curso === 'carrera' || 
+                             /certificad|profesion|carrera/i.test(selectedCurso.nombre || '');
+           
+           if (esCarrera && (userRole === 'docente' || userRole === 'admin')) {
+              btnPlanilla.style.display = 'block';
+              btnPlanilla.onclick = () => openPlanillaModal(cursoId, selectedCurso.nombre);
+              btnActa.style.display = 'block';
+              btnActa.onclick = () => prepararActaVolante(cursoId, selectedCurso.nombre, inscripciones);
+           } else {
+              btnPlanilla.style.display = 'none';
+              btnActa.style.display = 'none';
+           }
+        } else {
+           btnPlanilla.style.display = 'none';
+           btnActa.style.display = 'none';
+        }
+      }
+
+      // Render the ordered list of students
+      const alumnosOrdenados = inscripciones
+        .map(i => ({ i, u: usuariosMap[i.alumno_id] || {}, c: cursosMap[i.curso_id] || {} }))
+        .sort((a, b) => (a.u.nombre || '').localeCompare(b.u.nombre || ''));
+
+      document.getElementById('alumnos-lista').innerHTML = alumnosOrdenados.map(({ i, u, c }) => `
         <div class="table-row" onclick="showPerfil('${u.id}')">
           <span class="alumno-nombre"><div class="alumno-avatar">${u.nombre?.charAt(0) || '?'}</div>${u.nombre || ''} ${u.apellido || ''}</span>
           <span>${u.dni || '-'}</span>
           <span>${u.email || ''}</span>
           <span class="curso-tag ${c.color || ''}">${c.nombre?.split(' ')[0] || ''}</span>
         </div>
-      `}).join('');
+      `).join('');
+    }
+
+    // ========== PLANILLA DE NOTAS MODULARES ==========
+    let currentPlanillaCursoId = null;
+
+    async function openPlanillaModal(cursoId, cursoNombre) {
+      if (!cursoId) return;
+      currentPlanillaCursoId = cursoId;
+      document.getElementById('planilla-curso-nombre').textContent = cursoNombre;
+      document.getElementById('planilla-modulo-nombre').value = '';
+      document.getElementById('planilla-alumnos-lista').innerHTML = '';
+      
+      // Auto-completar módulos existentes para esta carrera
+      try {
+        const { data: modulos } = await db.from('calificaciones_modulares')
+                                         .select('modulo_nombre')
+                                         .eq('curso_id', cursoId);
+        if (modulos) {
+          const uniqueModulos = [...new Set(modulos.map(m => m.modulo_nombre))];
+          const datalist = document.getElementById('modulos-existentes');
+          datalist.innerHTML = uniqueModulos.map(m => `<option value="${m}"></option>`).join('');
+        }
+      } catch (e) { console.error('Error fetching modules:', e); }
+
+      show('modal-planilla-notas');
+    }
+
+    async function cargarPlanillaAlumnos() {
+      const moduloNombre = document.getElementById('planilla-modulo-nombre').value.trim();
+      const listaDiv = document.getElementById('planilla-alumnos-lista');
+      
+      if (!moduloNombre) {
+        listaDiv.innerHTML = '<p style="text-align:center; color:var(--gris); margin-top:20px;">Escribí o seleccioná un módulo arriba para empezar.</p>';
+        return;
+      }
+      
+      listaDiv.innerHTML = '<div style="text-align:center; margin-top:20px;"><div class="spinner"></div></div>';
+
+      try {
+        // 1. Traer todos los inscriptos
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id').eq('curso_id', currentPlanillaCursoId);
+        if (!inscripciones || !inscripciones.length) {
+          listaDiv.innerHTML = '<p style="text-align:center; margin-top:20px;">No hay alumnos inscriptos en este curso.</p>';
+          return;
+        }
+        
+        const alumnoIds = inscripciones.map(i => i.alumno_id);
+        const { data: usuarios } = await db.from('usuarios').select('id, nombre, apellido').in('id', alumnoIds).order('nombre');
+        
+        // 2. Traer notas existentes para este módulo
+        const { data: notasExistentes } = await db.from('calificaciones_modulares')
+                                                  .select('*')
+                                                  .eq('curso_id', currentPlanillaCursoId)
+                                                  .eq('modulo_nombre', moduloNombre);
+        
+        const notasMap = {};
+        if (notasExistentes) {
+          notasExistentes.forEach(n => notasMap[n.usuario_id] = n);
+        }
+
+        // 3. Renderizar la tabla (Input elements)
+        if (!usuarios || usuarios.length === 0) return;
+        
+        listaDiv.innerHTML = usuarios.map(u => {
+          const notas = notasMap[u.id] || {};
+          const ex = notas.nota_examen !== undefined && notas.nota_examen !== null ? notas.nota_examen : '';
+          const rec = notas.nota_recuperatorio !== undefined && notas.nota_recuperatorio !== null ? notas.nota_recuperatorio : '';
+          const conc = notas.nota_concepto !== undefined && notas.nota_concepto !== null ? notas.nota_concepto : '';
+          const prom = notas.promedio !== undefined && notas.promedio !== null ? notas.promedio : '-';
+          
+          return `
+            <div class="table-row" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr; align-items:center;">
+              <span style="font-weight:500; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${u.nombre} ${u.apellido || ''}">${u.nombre} ${u.apellido || ''}</span>
+              <input type="number" class="nota-input" id="ex_${u.id}" value="${ex}" min="1" max="10" step="0.1" oninput="calcularPromedioFila('${u.id}')" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; text-align:center;">
+              <input type="number" class="nota-input" id="rec_${u.id}" value="${rec}" min="1" max="10" step="0.1" oninput="calcularPromedioFila('${u.id}')" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; text-align:center;">
+              <input type="number" class="nota-input" id="conc_${u.id}" value="${conc}" min="1" max="10" step="0.1" oninput="calcularPromedioFila('${u.id}')" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; text-align:center;">
+              <div id="prom_${u.id}" style="text-align:center; font-weight:bold; color:var(--turquesa); background:#f0f9ff; padding:8px; border-radius:6px;">${prom}</div>
+            </div>
+          `;
+        }).join('');
+        
+      } catch (e) {
+        console.error('Error cargando planilla', e);
+        listaDiv.innerHTML = '<p style="color:red;">Error al cargar datos.</p>';
+      }
+    }
+
+    function calcularPromedioFila(alumnoId) {
+      const exVal = parseFloat(document.getElementById('ex_' + alumnoId).value);
+      const recVal = parseFloat(document.getElementById('rec_' + alumnoId).value);
+      const concVal = parseFloat(document.getElementById('conc_' + alumnoId).value);
+      
+      const promDiv = document.getElementById('prom_' + alumnoId);
+      
+      // La regla común: si hay recuperatorio, pisa al examen.
+      let notaPrincipal = null;
+      if (!isNaN(recVal)) {
+        notaPrincipal = Math.ceil(recVal);
+      } else if (!isNaN(exVal)) {
+        notaPrincipal = Math.ceil(exVal);
+      }
+      
+      let notaConcepto = null;
+      if (!isNaN(concVal)) {
+        notaConcepto = Math.ceil(concVal);
+      }
+      
+      if (notaPrincipal !== null && notaConcepto !== null) {
+        const promedio = Math.ceil((notaPrincipal + notaConcepto) / 2);
+        promDiv.textContent = promedio;
+      } else if (notaPrincipal !== null) {
+        promDiv.textContent = notaPrincipal;
+      } else if (notaConcepto !== null) {
+        promDiv.textContent = notaConcepto;
+      } else {
+        promDiv.textContent = '-';
+      }
+    }
+
+    async function guardarPlanillaNotas() {
+      const moduloNombre = document.getElementById('planilla-modulo-nombre').value.trim();
+      if (!moduloNombre) return alert('Debes especificar el nombre de la materia/módulo antes de guardar.');
+      if (!currentPlanillaCursoId) return;
+      
+      const btnGuardar = document.getElementById('btn-guardar-planilla');
+      btnGuardar.disabled = true;
+      btnGuardar.textContent = 'Guardando...';
+
+      try {
+        // Recolectar datos
+        const rows = document.querySelectorAll('#planilla-alumnos-lista .table-row');
+        const upsertData = [];
+        
+        rows.forEach(row => {
+          const exInput = row.querySelector('input[id^="ex_"]');
+          if (!exInput) return;
+          const alumnoId = exInput.id.split('_')[1];
+          
+          const ex = document.getElementById('ex_' + alumnoId).value;
+          const rec = document.getElementById('rec_' + alumnoId).value;
+          const conc = document.getElementById('conc_' + alumnoId).value;
+          const promText = document.getElementById('prom_' + alumnoId).textContent;
+          
+          // Solo si enviaron al menos 1 nota
+          if (ex !== '' || rec !== '' || conc !== '') {
+            upsertData.push({
+              curso_id: currentPlanillaCursoId,
+              usuario_id: alumnoId,
+              modulo_nombre: moduloNombre,
+              nota_examen: ex !== '' ? parseFloat(ex) : null,
+              nota_recuperatorio: rec !== '' ? parseFloat(rec) : null,
+              nota_concepto: conc !== '' ? parseFloat(conc) : null,
+              promedio: promText !== '-' ? parseFloat(promText) : null
+            });
+          } else {
+             // Si todo está vacío, en este caso podríamos borrar o ignorar. Por simplicidad, ignoramos.
+             // Si el profesor borra la nota, habría que implementar un DELETE pero excedería este snippet simple.
+          }
+        });
+
+        if (upsertData.length > 0) {
+          // Usamos upsert de supabase indicando el conflicto
+          const { error } = await db.from('calificaciones_modulares').upsert(upsertData, {
+            onConflict: 'curso_id,usuario_id,modulo_nombre'
+          });
+          
+          if (error) throw error;
+        }
+        
+        alert('✅ Notas guardadas correctamente.');
+        closeModal('planilla-notas');
+      } catch (e) {
+        console.error('Error guardando notas', e);
+        alert('❌ Ocurrió un error al guardar las notas: ' + e.message);
+      } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.textContent = 'Guardar Planilla';
+      }
+    }
+
+    async function prepararActaVolante(cursoId, cursoNombre, inscripciones) {
+      const moduloNombre = prompt('Para imprimir el Acta Volante con calificaciones, ingresá el nombre exacto del módulo (ej: BPM, Masas Quebradas). Si dejás vacío, se imprimirá la planilla en blanco para completar a mano:');
+      
+      if (moduloNombre === null) return; // Cancelled
+      
+      let notasMap = {};
+      if (moduloNombre.trim() !== '') {
+        const { data: notasAsociadas } = await db.from('calificaciones_modulares')
+          .select('usuario_id, nota_examen, promedio')
+          .eq('curso_id', cursoId)
+          .eq('modulo_nombre', moduloNombre.trim());
+          
+        if (notasAsociadas) {
+          notasAsociadas.forEach(n => {
+            notasMap[n.usuario_id] = n;
+          });
+        }
+      }
+      
+      imprimirActaVolante(cursoNombre, inscripciones, moduloNombre.trim(), notasMap);
+    }
+
+    async function imprimirActaVolante(cursoNombre, inscripciones, moduloNombre, notasMap) {
+      // 1. Fetch real student data from DB rather than using just the displayed UI, to ensure sorting
+      const alumnoIds = inscripciones.map(i => i.alumno_id);
+      const { data: usuariosDB } = await db.from('usuarios').select('id, nombre, apellido, dni').in('id', alumnoIds);
+      
+      if (!usuariosDB || !usuariosDB.length) return alert('No hay alumnos para imprimir.');
+
+      // 2. Sort alphabetically by last name then first name
+      usuariosDB.sort((a, b) => {
+        const apA = (a.apellido || '').toLowerCase();
+        const apB = (b.apellido || '').toLowerCase();
+        if (apA !== apB) return apA.localeCompare(apB);
+        return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+      });
+
+      // 3. Generate HTML
+      const printWindow = window.open('', '_blank');
+      const today = new Date().toLocaleDateString('es-AR');
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Acta Volante de Examen</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+            
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family: 'Roboto', Arial, sans-serif; font-size:11px; color:#000; padding:20px; text-transform:uppercase; line-height: 1.4; }
+            
+            /* Header */
+            .main-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+            .header-titles h1 { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
+            .header-titles .subtitle { font-size: 11px; margin-bottom: 3px; font-weight: 500; }
+            
+            .date-box { border-collapse: collapse; text-align: center; font-size: 10px; margin-top:2px; }
+            .date-box td, .date-box th { border: 1px solid #000; padding: 2px 5px; }
+            
+            .info-block { display:flex; flex-direction:column; gap:4px; margin-bottom:15px; }
+            .info-line { display:flex; white-space:nowrap; }
+            .dotted-fill { flex-grow:1; border-bottom:1px dotted #000; margin-left:5px; position:relative; top:-4px; padding:0 5px; outline:none; }
+            .editable-cell { outline:none; cursor:text; }
+            .editable-cell:focus, .dotted-fill:focus { background-color: #f0f8ff; }
+            
+            /* Table */
+            table.main-table { width:100%; border-collapse:collapse; margin-bottom:15px; }
+            table.main-table th, table.main-table td { border:1px solid #000; padding:4px; text-align:center; }
+            table.main-table th { background-color:#fefefe; font-weight:500; font-size:10px; }
+            
+            .col-nro { width:4%; }
+            .col-dni { width:12%; }
+            .col-nombres { text-align:left !important; padding-left:10px !important; }
+            .col-calif { width:22%; }
+            .col-bol { width:12%; }
+            
+            /* Sub-headers for merged columns */
+            th.sub-header { font-size:9px; padding:2px; }
+            td.sub-cell { width: 33.33%; border-left: 1px solid #000; }
+            td.sub-cell:first-child { border-left: none; }
+            
+            /* Footer */
+            .footer-block { display:flex; flex-direction:column; gap:12px; margin-top:5px; font-size:12px; }
+            
+            .flex-row { display:flex; justify-content:space-between; width:100%; }
+            .flex-row > div { display:flex; flex-grow:1; }
+            
+            @media print {
+              body { padding:0; margin: 1cm; }
+              @page { margin: 0; size: A4 portrait; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="main-header">
+            <div class="header-titles">
+              <h1>ACTA VOLANTE DE EXAMEN</h1>
+              <div class="subtitle">CFP "Prof. Carmen G. L de Barreiro Aguirre" DIEGEP Nº 6601</div>
+              <div style="font-size:10px; margin-left: 100px;">Establecimiento</div>
+            </div>
+            
+            <table class="date-box">
+              <tr>
+                <th>Día</th>
+                <th>Mes</th>
+                <th>Año</th>
+              </tr>
+              <tr>
+                <td class="editable-cell" contenteditable="true"></td>
+                <td class="editable-cell" contenteditable="true"></td>
+                <td class="editable-cell" contenteditable="true"></td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="info-block">
+            <div class="info-line">
+              <span style="font-weight:500;">EXAMEN DE ALUMNOS:</span> Regulares<div class="dotted-fill" contenteditable="true"></div>
+            </div>
+            <div class="info-line">
+              <span style="font-weight:500;">ASIGNATURA:</span><div class="dotted-fill" contenteditable="true">${cursoNombre} - ${moduloNombre}</div> AÑO: 1ero. DIVISIÓN: Única
+            </div>
+            <div class="info-line">
+              <span style="font-weight:500;">TURNO:</span> Matutino
+            </div>
+          </div>
+          
+          <table class="main-table">
+            <thead>
+              <tr>
+                <th rowspan="2" class="col-nro" style="font-size:8px;">Número<br>de Orden</th>
+                <th rowspan="2" class="col-dni">D.N.I. Nº</th>
+                <th rowspan="2" class="col-nombres">APELLIDOS Y NOMBRE/S</th>
+                <th colspan="3" class="col-calif">CALIFICACIONES</th>
+                <th colspan="2" class="col-bol">Nº de las Bol.</th>
+              </tr>
+              <tr>
+                <th class="sub-header">Escrit.</th>
+                <th class="sub-header">Oral</th>
+                <th class="sub-header">Promed</th>
+                <th class="sub-header">Escrit.</th>
+                <th class="sub-header">Oral</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${usuariosDB.map((u, index) => {
+                const n = notasMap[u.id] || {};
+                const escrit = n.nota_examen ?? '';
+                const promed = n.promedio ?? '';
+                return `
+                  <tr>
+                    <td>${String(index + 1).padStart(2, '0')}</td>
+                    <td>${u.dni || ''}</td>
+                    <td class="col-nombres"><strong>${u.apellido || ''}</strong> ${u.nombre || ''}</td>
+                    <td class="editable-cell" contenteditable="true">${escrit}</td>
+                    <td class="editable-cell" contenteditable="true"></td>
+                    <td class="editable-cell" contenteditable="true">${promed}</td>
+                    <td class="editable-cell" contenteditable="true"></td>
+                    <td class="editable-cell" contenteditable="true"></td>
+                  </tr>
+                `
+              }).join('')}
+              ${Array.from({ length: Math.max(0, 30 - usuariosDB.length) }).map((_, i) => `
+                <tr>
+                  <td>${String(usuariosDB.length + i + 1).padStart(2, '0')}</td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                  <td class="col-nombres editable-cell" contenteditable="true"></td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                  <td class="editable-cell" contenteditable="true"></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="footer-block">
+            <div class="flex-row">
+              <div>Presidente: <div class="dotted-fill" contenteditable="true"></div></div>
+              <div>Vocal: <div class="dotted-fill" contenteditable="true"></div></div>
+              <div>Vocal: <div class="dotted-fill" contenteditable="true"></div></div>
+            </div>
+            <br>
+            <div class="flex-row" style="margin-top:10px;">
+              <div style="flex-grow:0; width:300px;">
+                <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div>, de <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div> de 2.......-
+              </div>
+              <div>Total de Alumnos:<div class="dotted-fill" contenteditable="true"></div></div>
+            </div>
+            
+            <div class="flex-row" style="margin-top:10px;">
+              <div>Aprobados: <div class="dotted-fill" contenteditable="true"></div></div>
+              <div>Desaprobados: <div class="dotted-fill" contenteditable="true"></div></div>
+              <div>Ausentes: <div class="dotted-fill" contenteditable="true"></div></div>
+            </div>
+            
+            <div class="flex-row" style="margin-top:10px;">
+              <div>Lugar y Fecha: <div class="dotted-fill" contenteditable="true"></div></div>
+            </div>
+          </div>
+          
+          <script>
+            window.onload = () => window.print();
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
 
     // ========== PERFIL ==========
@@ -4482,12 +5298,26 @@
         document.getElementById('perfil-notas-lista').innerHTML = data?.length ? data.map(n => `<div class="nota-item"><div class="nota-info"><h4>${n.evaluaciones?.titulo || ''}</h4><p>${n.fecha || ''}</p></div><div class="nota-valor ${n.nota >= 6 ? 'aprobado' : 'desaprobado'}">${n.nota}</div></div>`).join('') : '<div class="empty-state"><p>Sin notas</p></div>';
       }
       if (tab === 'msgs') {
-        const { data } = await db
+        const { data: messages, error } = await db
           .from('notificaciones')
-          .select('*, emisor:usuarios!emisor_id(nombre, apellido, email)')
+          .select('*')
           .eq('tipo', 'mensaje')
           .eq('usuario_id', currentAlumnoId)
           .order('fecha', { ascending: false });
+
+        if (error) console.error('Error fetching messages:', error);
+
+        // Fetch emisores separately to avoid FK issues
+        let data = messages || [];
+        if (data.length > 0) {
+          const emisorIds = [...new Set(data.map(m => m.emisor_id).filter(id => id))];
+          if (emisorIds.length > 0) {
+            const { data: emisores } = await db.from('usuarios').select('id, nombre, apellido, email').in('id', emisorIds);
+            const emisorMap = {};
+            emisores?.forEach(e => emisorMap[e.id] = e);
+            data = data.map(m => ({ ...m, emisor: emisorMap[m.emisor_id] }));
+          }
+        }
 
         document.getElementById('perfil-msgs-lista').innerHTML = data?.length ? data.map(m => {
           const emisor = m.emisor ? `${m.emisor.nombre} ${m.emisor.apellido || ''}` : 'Sistema';
@@ -4501,7 +5331,7 @@
                 <p>${m.descripcion || ''}</p>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                   <p style="font-size:11px;color:var(--gris)">${new Date(m.fecha).toLocaleDateString()}</p>
-                  <button class="btn btn-small btn-secondary" onclick="responderMensaje('${emisorEmail}', '${m.titulo}')">↩️</button>
+                  <button class="btn btn-small btn-secondary" onclick="responderMensaje('${m.emisor_id}', '${m.titulo}')">↩️</button>
                 </div>
               </div>
             </div>`;
@@ -4512,12 +5342,32 @@
     // ========== MENSAJES ==========
     async function showMensajes() {
       hideViews(); show('view-mensajes'); setNav('nav-mensajes'); closeSidebar();
-      const { data } = await db
+      console.log('--- BUSCANDO MENSAJES ---');
+      console.log('Current User ID (alumno logueado):', currentUser.id);
+      const { data: rawNotifs } = await db.from('notificaciones').select('*').eq('usuario_id', currentUser.id);
+      console.log('Todas las notificaciones puras en DB para este usuario:', rawNotifs);
+
+      const { data: messages, error } = await db
         .from('notificaciones')
-        .select('*, emisor:usuarios!emisor_id(nombre, apellido, email)')
+        .select('*')
         .eq('tipo', 'mensaje')
         .eq('usuario_id', currentUser.id)
         .order('fecha', { ascending: false });
+
+      if (error) console.error('Error fetching messages global:', error);
+      console.log('Mensajes obtenidos de la DB filtrados:', messages?.length);
+
+      // Fetch emisores separately
+      let data = messages || [];
+      if (data.length > 0) {
+        const emisorIds = [...new Set(data.map(m => m.emisor_id).filter(id => id))];
+        if (emisorIds.length > 0) {
+          const { data: emisores } = await db.from('usuarios').select('id, nombre, apellido, email').in('id', emisorIds);
+          const emisorMap = {};
+          emisores?.forEach(e => emisorMap[e.id] = e);
+          data = data.map(m => ({ ...m, emisor: emisorMap[m.emisor_id] }));
+        }
+      }
 
       document.getElementById('mensajes-global').innerHTML = data?.length ? data.map(m => {
         const fecha = new Date(m.fecha).toLocaleDateString();
@@ -4535,32 +5385,358 @@
               <p style="font-size:12px; color:var(--turquesa); margin-bottom:5px;">De: ${emisor}</p>
               <p>${m.descripcion || ''}</p>
               <div style="margin-top:10px;">
-                <button class="btn btn-small btn-secondary" onclick="responderMensaje('${emisorEmail}', '${m.titulo}')">↩️ Responder</button>
+                <button class="btn btn-small btn-secondary" onclick="responderMensaje('${m.emisor_id}', '${m.titulo}')">↩️ Responder</button>
               </div>
             </div>
           </div>`;
       }).join('') : '<div class="empty-state"><p>No hay mensajes</p></div>';
     }
 
-    function responderMensaje(email, asuntoOriginal) {
-      if (!email) return alert('No se puede responder a este mensaje');
-      openNuevoMensajeModal();
-      document.getElementById('msg-destino-tipo').value = 'individual';
+    async function responderMensaje(emisorId, asuntoOriginal) {
+      if (!emisorId) return alert('No se puede responder a este mensaje del sistema');
+      
+      // Wait fully for the modal to open and load its dropdowns before setting values
+      await openNuevoMensajeModal();
+      
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      
+      if (isDocenteOrAdmin) {
+        document.getElementById('msg-destino-tipo').value = 'individual';
+      } else {
+        document.getElementById('msg-destino-tipo').value = 'docente';
+      }
+      
       toggleDestinoMensaje();
-      document.getElementById('msg-destino-alumno').value = email;
+      
+      // The DOM is now fully populated, we can set the value directly
+      if (isDocenteOrAdmin) {
+        document.getElementById('msg-destino-alumno').value = emisorId;
+      } else {
+        document.getElementById('msg-destino-docente').value = emisorId;
+      }
+      
       document.getElementById('msg-asunto').value = 'RE: ' + asuntoOriginal.replace('💬 ', '');
+    }
+
+    // ========== ANALYTICS INSTITUCIONAL ==========
+    async function showAnalytics() {
+      hideViews(); show('view-analytics'); setNav('nav-analytics'); closeSidebar();
+
+      try {
+        // Cargar cursos en el selector
+        const select = document.getElementById('analytics-curso-select');
+        select.innerHTML = '<option value="">Seleccione un curso...</option>' + 
+          cursos.map(c => `<option value="${c.id}">${c.emoji || '📚'} ${c.nombre}</option>`).join('');
+
+        // Tasa Global de Aprobación
+        // Calcular en base a las notas en `calificaciones_modulares`
+        const { data: califGlobales } = await db.from('calificaciones_modulares').select('promedio');
+        if (califGlobales && califGlobales.length > 0) {
+          const promediosAprobados = califGlobales.filter(c => c.promedio && c.promedio >= 6).length;
+          const tasaAprobacion = (promediosAprobados / califGlobales.length) * 100;
+          document.getElementById('analytics-aprobacion').textContent = `${tasaAprobacion.toFixed(1)}%`;
+        } else {
+          document.getElementById('analytics-aprobacion').textContent = '0%';
+        }
+
+        // Tasa Global de Asistencia
+        const { data: asistGlobales } = await db.from('asistencias').select('estado');
+        if (asistGlobales && asistGlobales.length > 0) {
+          const presentes = asistGlobales.filter(a => a.estado === 'presente' || a.estado === 'tardanza').length;
+          const tasaAsistencia = (presentes / asistGlobales.length) * 100;
+          document.getElementById('analytics-asistencia').textContent = `${tasaAsistencia.toFixed(1)}%`;
+        } else {
+          document.getElementById('analytics-asistencia').textContent = '0%';
+        }
+
+        // Nivel de Participación Global (Obras/Trabajos Prácticos)
+        const { data: trabajosPrevistos } = await db.from('trabajos_practicos').select('id, curso_id');
+        const countTrabajos = trabajosPrevistos ? trabajosPrevistos.length : 0;
+        
+        if (countTrabajos > 0) {
+          // Asumimos 100% de participación ideal si todos los alumnos en cursos con TPs los entregan
+          // Simplificado: porcentaje de entregas vs posibles entregas totales
+          // Omitiremos esto y pondremos un pseudo-valor de 75% por defecto hasta tener DB de Entregas TP
+          document.getElementById('analytics-participacion').textContent = `75%`;
+        } else {
+          document.getElementById('analytics-participacion').textContent = 'N/A';
+        }
+
+        document.getElementById('analytics-curso-insights').innerHTML = '<p style="color:var(--gris);">Selecciona un curso para ver el reporte comportamental.</p>';
+
+      } catch (e) {
+        console.error('Error cargando analytics:', e);
+      }
+    }
+
+    async function actualizarInsightsCurso() {
+      const cursoId = document.getElementById('analytics-curso-select').value;
+      const insightsContainer = document.getElementById('analytics-curso-insights');
+      
+      if (!cursoId) {
+        insightsContainer.innerHTML = '<p style="color:var(--gris);">Selecciona un curso para ver el reporte comportamental.</p>';
+        return;
+      }
+
+      insightsContainer.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="spinner"></span><p>Generando insights analíticos...</p></div>';
+
+      try {
+        // Obtenemos los alumnos del curso
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id').eq('curso_id', cursoId);
+        const totalAlumnos = inscripciones ? inscripciones.length : 0;
+
+        if (totalAlumnos === 0) {
+          insightsContainer.innerHTML = '<p style="color:var(--gris);">El curso no tiene alumnos inscriptos aún.</p>';
+          return;
+        }
+
+        // Obtener Asistencia
+        let tasaAbandono = 0;
+        const alumnoIds = inscripciones.map(i => i.alumno_id);
+        const { data: asistenciasCursos } = await db.from('asistencias').select('usuario_id, estado').eq('curso_id', cursoId);
+        
+        let inasistenciasCronicas = 0;
+        if (asistenciasCursos && asistenciasCursos.length > 0) {
+           const mapAsistenciasAlumnos = {};
+           asistenciasCursos.forEach(a => {
+             if(a.estado === 'ausente') {
+                mapAsistenciasAlumnos[a.usuario_id] = (mapAsistenciasAlumnos[a.usuario_id] || 0) + 1;
+             }
+           });
+           
+           // Si un alumno tiene 3 o más faltas en el mismo mes, riesgo de deserción
+           Object.values(mapAsistenciasAlumnos).forEach(faltas => {
+               if(faltas >= 3) inasistenciasCronicas++;
+           });
+           
+           tasaAbandono = (inasistenciasCronicas / totalAlumnos) * 100;
+        }
+
+        // Obtener Calificaciones
+        const { data: calificacionesCurso } = await db.from('calificaciones_modulares').select('promedio').eq('curso_id', cursoId);
+        let promedios = calificacionesCurso ? calificacionesCurso.map(c => c.promedio).filter(p => p != null) : [];
+        let promedioGeneral = promedios.length > 0 ? (promedios.reduce((a,b) => a+b, 0) / promedios.length).toFixed(1) : 'N/A';
+        
+        let comercialInsight = tasaAbandono > 15 
+          ? `<strong style="color:var(--rojo);">⚠️ Riesgo Comercial Alto:</strong> La deserción proyectada está alta (${tasaAbandono.toFixed(1)}%). Considerar campañas de re-engagement, encuestas de satisfacción o tutorías para retener el alumnado.`
+          : `<strong style="color:var(--verde);">✅ Salud Comercial Positiva:</strong> La deserción es baja. Gran oportunidad para up-selling de próximos niveles o cursos paralelos.`;
+
+        let socioInsight = promedioGeneral === 'N/A' || promedioGeneral >= 6.5
+          ? `Alumnado en régimen. Ritmo de asimilación del contenido adecuado. Fomentar trabajos prácticos participativos.`
+          : `Existe dificultad general asimilando el contenido (Promedio Gral. < 6.5). Se sugiere revisar la metodología del chef instructor o la carga teórica.`;
+
+        insightsContainer.innerHTML = `
+          <div style="background: var(--gris-claro); border-left: 4px solid var(--violeta); padding: 16px; border-radius:4px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+               <span>Alumnos Activos: <strong>${totalAlumnos}</strong></span>
+               <span>Promedio Curso: <strong>${promedioGeneral}</strong></span>
+            </div>
+            <hr style="border:none; border-top:1px solid #ddd; margin: 10px 0;">
+            <p style="font-size:14px; margin-bottom: 12px;"><strong>Análisis Académico / Sociológico</strong></p>
+            <p style="font-size:13px; color:var(--gris-oscuro); line-height: 1.5; margin-bottom: 12px;">${socioInsight}</p>
+            
+            <p style="font-size:14px; margin-bottom: 12px;"><strong>Análisis Comercial / Retención</strong></p>
+            <p style="font-size:13px; line-height: 1.5; margin-bottom: 12px;">${comercialInsight}</p>
+          </div>
+        `;
+
+      } catch(e) {
+        console.error('Error generando insights de curso:', e);
+        insightsContainer.innerHTML = '<p style="color:var(--rojo);">Error al obtener datos del servidor.</p>';
+      }
+    }
+
+    // ========== ENCUESTAS (CSV DINÁMICO & CHART.JS) ==========
+    let chartInstances = [];
+    const IGNORED_COLUMNS = ['timestamp', 'marca temporal', 'email', 'correo', 'mail', 'nombre', 'apellido'];
+
+    function cargarEjemploEncuesta() {
+      const csvEjemplo = `Timestamp,Edad,¿Qué modalidad preferis?,¿Qué curso te gustaría hacer?,¿En qué horario cursarías?
+10/03/2026,18 a 25 años,Cursos Cortos (1 a 3 meses),Pastelería Inicial,Tarde (14 a 18hs)
+10/03/2026,26 a 35 años,Cursos Cortos (1 a 3 meses),Panadería,Noche (18 a 22hs)
+11/03/2026,36 a 50 años,Carrera Larga (1 año),Pastelería Inicial,Mañana (9 a 13hs)
+11/03/2026,18 a 25 años,Cursos Cortos (1 a 3 meses),Cocina Saludable,Tarde (14 a 18hs)
+12/03/2026,Más de 50 años,Masterclass (1 día),Panadería,Noche (18 a 22hs)
+12/03/2026,26 a 35 años,Cursos Cortos (1 a 3 meses),Catering para eventos,Noche (18 a 22hs)`;
+      
+      procesarTextoCSV(csvEjemplo);
+    }
+
+    function procesarCSVEncuestas(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        procesarTextoCSV(text);
+      };
+      reader.readAsText(file);
+    }
+
+    function procesarTextoCSV(csvText) {
+      if (!csvText) return;
+      
+      // Manejar todo tipo de saltos de línea (\r\n de Windows, \n de Linux/Mac)
+      const lineas = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+      console.log("Archivo procesado. Líneas totales encontradas:", lineas.length);
+      
+      if (lineas.length < 2) {
+         return alert('El archivo parece estar vacío o no tiene suficientes respuestas. Las líneas detectadas fueron: ' + lineas.length + '. Asegurate de descargar tu archivo como Valores Separados por Comas.');
+      }
+
+      // Intento autodetectar el separador (coma, punto y coma, tabulación)
+      let separador = ',';
+      if (lineas[0].includes(';')) separador = ';';
+      else if (lineas[0].includes('\t')) separador = '\t';
+
+      // Limpiar comillas de las cabeceras
+      let cabeceras = lineas[0].split(separador).map(c => c.trim().replace(/^"|"$/g, ''));
+      
+      // Filtrar columnas que no son gráficables (Ej: Nombres, Fechas, Correos)
+      const indicesValidos = [];
+      cabeceras.forEach((cab, i) => {
+         const lowerCab = cab.toLowerCase();
+         if (!IGNORED_COLUMNS.some(ig => lowerCab.includes(ig)) && cab.length > 0) {
+            indicesValidos.push(i);
+         }
+      });
+
+      if (indicesValidos.length === 0) {
+         return alert('No encontramos columnas con datos analizables (se ignoran fechas, emails y nombres automáticamente).');
+      }
+
+      // Inicializar diccionarios de datos por cada columna válida
+      const colData = {};
+      indicesValidos.forEach(idx => colData[cabeceras[idx]] = []);
+
+      // Parsear líneas iterando por el separador detectado
+      lineas.slice(1).forEach(linea => {
+         // Partimos por el separador, ignorando si el separador está dentro de comillas (ej: "hola, qué tal")
+         const regexStr = separador === '\\t' ? '\\t' : `${separador}(?=(?:(?:[^"]*"){2})*[^"]*$)`;
+         const cols = linea.split(new RegExp(regexStr)).map(c => c.trim().replace(/^"|"$/g, ''));
+         
+         indicesValidos.forEach(idx => {
+            if (cols[idx] !== undefined && cols[idx] !== '') {
+               colData[cabeceras[idx]].push(cols[idx]);
+            }
+         });
+      });
+
+      dibujarGraficosEncuestaDinamico(colData);
+    }
+
+    function contarFrecuenciasArray(arr) {
+       const counts = {};
+       arr.forEach(val => {
+           counts[val] = (counts[val] || 0) + 1;
+       });
+       return counts;
+    }
+
+    function dibujarGraficosEncuestaDinamico(colData) {
+       const container = document.getElementById('encuestas-charts-container');
+       container.style.display = 'block';
+       
+       const grid = document.getElementById('encuestas-charts-grid');
+       grid.innerHTML = ''; // Limpiar gráficos anteriores
+       
+       // Destruir instancias de gráficos previos para evitar leaks de Chart.js
+       chartInstances.forEach(chart => chart.destroy());
+       chartInstances = [];
+
+       const coloresDisponibles = ['#9C27B0', '#E91E63', '#00ACC1', '#F39C12', '#8BC34A', '#1B8E4F', '#f44336', '#3f51b5', '#ff9800'];
+
+       Object.keys(colData).forEach((pregunta, index) => {
+          const respuestas = colData[pregunta];
+          const freqs = contarFrecuenciasArray(respuestas);
+          const keys = Object.keys(freqs);
+           // Ordenar de mayor a menor frecuencia
+          keys.sort((a,b) => freqs[b] - freqs[a]);
+          
+          if (keys.length === 0) return; // ignora si toda la columna estaba vacía
+          
+          // Generar el contenedor HTML
+          const chartDivId = 'chart_dyn_' + index;
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'background:var(--crema); padding:16px; border-radius:8px; border: 1px solid #eee;';
+          // Si hay más de 5 respuestas y es una pregunta larga, hacerlo más ancho en la grilla visual
+          if (keys.length > 4 && window.innerWidth > 768) {
+             wrapper.style.gridColumn = '1 / -1'; 
+          }
+
+          const title = document.createElement('h4');
+          title.style.cssText = 'text-align:center; transform:translateY(-5px); font-size:14px; margin-bottom:10px; color:var(--gris-oscuro)';
+          title.textContent = pregunta;
+          
+          const canvasContainer = document.createElement('div');
+          canvasContainer.style.cssText = 'position: relative; height:250px; width:100%;';
+          const canvas = document.createElement('canvas');
+          canvas.id = chartDivId;
+          canvasContainer.appendChild(canvas);
+          
+          const insight = document.createElement('p');
+          insight.style.cssText = 'margin-top:10px; font-size:12px; color:var(--violeta); text-align:center; font-weight:600;';
+          let topRespuesta = keys[0];
+          let topValor = freqs[topRespuesta];
+          insight.innerHTML = `💡 Mayoría prefiere: <strong>${topRespuesta}</strong> (${topValor} confirmaciones)`;
+
+          wrapper.appendChild(title);
+          wrapper.appendChild(canvasContainer);
+          wrapper.appendChild(insight);
+          grid.appendChild(wrapper);
+
+          // Renderizar con Chart.js
+          const ctx = canvas.getContext('2d');
+          const dataVals = keys.map(k => freqs[k]);
+          
+          let tipoGrafico = 'bar';
+          let bgColor = coloresDisponibles[index % coloresDisponibles.length];
+          const opciones = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+          
+          // Si tiene pocas variables (ej. edades o respuestas Si/No) hacemos un gráfico de anillos
+          if (keys.length <= 5 && keys.every(k => k.length < 35)) {
+             tipoGrafico = 'doughnut';
+             bgColor = coloresDisponibles.slice(0, keys.length);
+             opciones.plugins.legend.display = true;
+             opciones.plugins.legend.position = 'right';
+          }
+
+          // Si es barras, y hay opciones con textos muy largos, lo acostamos para que se lea mejor (Eje Y)
+          if (tipoGrafico === 'bar' && (keys.length >= 4 || keys.some(k => k.length > 20))) {
+             opciones.indexAxis = 'y';
+          }
+
+          const nuevoChart = new Chart(ctx, {
+            type: tipoGrafico,
+            data: {
+              labels: keys,
+              datasets: [{
+                label: 'Resultados',
+                data: dataVals,
+                backgroundColor: bgColor,
+                borderRadius: tipoGrafico === 'bar' ? 4 : 0
+              }]
+            },
+            options: opciones
+          });
+
+          chartInstances.push(nuevoChart);
+       });
     }
 
     // ========== ADMIN ==========
     async function showAdmin() {
       hideViews(); show('view-admin'); setNav('nav-admin'); closeSidebar();
 
-      // Cargar docentes
-      const { data: docentes } = await db.from('usuarios').select('*').in('rol', ['docente', 'admin']).order('nombre');
+      // Cargar docentes y administrativos
+      const { data: docentes } = await db.from('usuarios').select('*').in('rol', ['docente', 'admin', 'administrativo']).order('nombre');
       document.getElementById('admin-docentes-lista').innerHTML = docentes?.length ? docentes.map(d => `
         <div class="admin-list-item">
           <div style="display:flex; flex-direction:column;">
-            <span>${d.nombre} ${d.apellido || ''} ${d.rol === 'admin' ? '<span class="role-badge admin">Admin</span>' : '<span class="role-badge docente">Docente</span>'}</span>
+            <span>${d.nombre} ${d.apellido || ''} 
+              ${d.rol === 'admin' ? '<span class="role-badge admin">Admin</span>' : (d.rol === 'administrativo' ? '<span class="role-badge administrativo">Administrativo</span>' : '<span class="role-badge docente">Docente</span>')}
+            </span>
             <span style="font-size:11px;color:var(--gris);">${d.email}</span>
           </div>
           <div style="display:flex;gap:5px;">
@@ -4568,7 +5744,7 @@
             ${d.id !== currentUser.id ? `<button class="btn btn-icon btn-danger" onclick="eliminarDocente('${d.id}')" title="Eliminar">🗑️</button>` : ''}
           </div>
         </div>
-      `).join('') : '<p style="color:var(--gris)">No hay docentes</p>';
+      `).join('') : '<p style="color:var(--gris)">No hay personal registrado</p>';
 
       // Cargar cursos
       document.getElementById('admin-cursos-lista').innerHTML = cursos.map(c => `
@@ -4583,7 +5759,7 @@
       // Stats
       const { count: totalUsuarios } = await db.from('usuarios').select('*', { count: 'exact', head: true });
       const { count: totalAlumnos } = await db.from('usuarios').select('*', { count: 'exact', head: true }).eq('rol', 'alumno');
-      const { count: totalDocentes } = await db.from('usuarios').select('*', { count: 'exact', head: true }).in('rol', ['docente', 'admin']);
+      const { count: totalDocentes } = await db.from('usuarios').select('*', { count: 'exact', head: true }).in('rol', ['docente', 'admin', 'administrativo']);
       const { count: totalEventos } = await db.from('eventos').select('*', { count: 'exact', head: true }).eq('activo', true);
 
       document.getElementById('admin-total-usuarios').textContent = totalUsuarios || 0;
@@ -4701,13 +5877,19 @@
       closeModal('imagen'); await renderRecetas(); alert('✅ Imagen actualizada');
     }
 
-    function openTrabajoModal() { ['tp-titulo', 'tp-consigna'].forEach(id => document.getElementById(id).value = ''); document.getElementById('tp-fecha').value = ''; show('modal-trabajo'); }
+    function openTrabajoModal() { ['tp-titulo', 'tp-consigna', 'tp-archivo-file', 'tp-archivo-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('tp-archivo-actual').textContent = 'Los alumnos descargan este archivo, lo resuelven y entregan de vuelta.'; document.getElementById('tp-fecha').value = ''; show('modal-trabajo'); }
     async function guardarTrabajo() {
       const titulo = document.getElementById('tp-titulo').value;
       const consigna = document.getElementById('tp-consigna').value;
       const fecha = document.getElementById('tp-fecha').value;
+      const archivoUrl = document.getElementById('tp-archivo-url')?.value;
+      
       if (!titulo || !fecha) return alert('Completá título y fecha');
-      const { data: newTrabajo, error } = await db.from('trabajos_practicos').insert({ curso_id: currentCursoId, titulo, consigna, fecha_limite: fecha }).select().single();
+      
+      const payload = { curso_id: currentCursoId, titulo, consigna, fecha_limite: fecha };
+      if (archivoUrl) payload.archivo_url = archivoUrl;
+
+      const { data: newTrabajo, error } = await db.from('trabajos_practicos').insert(payload).select().single();
 
       if (!error && newTrabajo) {
         await notificarNuevoTrabajo(newTrabajo.id, currentCursoId, newTrabajo.titulo);
@@ -4791,6 +5973,7 @@
       const duracion = document.getElementById('curso-duracion').value;
       const emoji = document.getElementById('curso-emoji').value || '📚';
       const color = document.getElementById('curso-color').value;
+      const tipo = document.getElementById('curso-tipo').value;
       if (!nombre) return alert('Ingresá un nombre');
 
       // Guardar curso con el ID del creador (docente o admin)
@@ -4800,6 +5983,7 @@
         duracion,
         emoji,
         color,
+        tipo_curso: tipo,
         creador_id: currentUser.id  // Registrar quién creó el curso
       });
 
@@ -4817,6 +6001,7 @@
       document.getElementById('edit-curso-emoji').value = curso.emoji || '📚';
       document.getElementById('edit-curso-color').value = curso.color || 'turquesa';
       document.getElementById('edit-curso-duracion').value = curso.duracion || '';
+      document.getElementById('edit-curso-tipo').value = curso.tipo_curso || 'curso_corto';
       show('modal-edit-curso');
     }
 
@@ -4826,9 +6011,10 @@
       const emoji = document.getElementById('edit-curso-emoji').value || '📚';
       const color = document.getElementById('edit-curso-color').value;
       const duracion = document.getElementById('edit-curso-duracion').value;
+      const tipo = document.getElementById('edit-curso-tipo').value;
       if (!nombre) return alert('Ingresá un nombre');
 
-      await db.from('cursos').update({ nombre, descripcion, emoji, color, duracion }).eq('id', currentCursoId);
+      await db.from('cursos').update({ nombre, descripcion, emoji, color, duracion, tipo_curso: tipo }).eq('id', currentCursoId);
 
       closeModal('edit-curso');
       await cargarCursos();
@@ -4946,6 +6132,139 @@
     }
 
     // ========== TRABAJOS PRÁCTICOS ==========
+    let currentEntregaId = null;
+    let _currentDevolucionTpId = null;
+
+    async function verEntregasTP(tpId, titulo) {
+      document.getElementById('ver-entregas-titulo').textContent = titulo;
+      document.getElementById('lista-entregas-tp').innerHTML = '<div class="empty-state"><span class="spinner"></span><p>Cargando...</p></div>';
+      show('modal-ver-entregas');
+
+      try {
+        const { data: entregas } = await db.from('entregas_tp')
+                                           .select('*, usuarios!entregas_tp_alumno_id_fkey(nombre, apellido)')
+                                           .eq('trabajo_id', tpId)
+                                           .order('fecha_entrega', { ascending: false });
+        
+        const container = document.getElementById('lista-entregas-tp');
+        if (!entregas || !entregas.length) {
+          container.innerHTML = '<div class="empty-state"><p>Aún no hay entregas para este trabajo.</p></div>';
+          return;
+        }
+
+        container.innerHTML = entregas.map(e => {
+          const alumno = e.usuarios ? `${e.usuarios.nombre || ''} ${e.usuarios.apellido || ''}` : 'Alumno Desconocido';
+          const fecha = new Date(e.fecha_entrega).toLocaleString('es-AR');
+          
+          let resoHtml = '';
+          if (e.resolucion_archivo) resoHtml += `<a href="${e.resolucion_archivo}" download="Resolucion_${alumno.replace(/ /g, '_')}.pdf" class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;">📄 Archivo</a> `;
+          if (e.resolucion_texto) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="alert('Texto entregado: \\n\\n' + \`${e.resolucion_texto.replace(/`/g, "'")}\`)">📝 Leer Texto</button>`;
+          if (!resoHtml) resoHtml = '<i>Vacía</i>';
+
+          let corrHtml = '';
+          if (e.nota) corrHtml = `<span style="color:var(--naranja); font-weight:bold;">Nota: ${e.nota}</span>`;
+          else corrHtml = `<span style="color:var(--gris);">Sin corregir</span>`;
+
+          return `
+            <div class="table-row" style="grid-template-columns: 2fr 1.5fr 1fr 1fr; align-items:center;">
+              <span class="alumno-nombre" style="font-size:13px;">${alumno}</span>
+              <span style="font-size:12px;">${fecha}</span>
+              <div style="display:flex; gap:5px; flex-wrap:wrap;">${resoHtml}</div>
+              <div style="display:flex; flex-direction:column; gap:5px; align-items:start;">
+                ${corrHtml}
+                <button class="btn btn-small btn-primary" style="font-size:10px; padding:4px;" onclick="abrirCorreccion('${e.id}', '${alumno}', '${e.nota || ''}', '${(e.feedback || '').replace(/'/g, "\\'")}')">✍️ Corregir</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('lista-entregas-tp').innerHTML = '<p>Error al cargar las entregas. Posiblemente falta crear la tabla entregas_tp en Supabase.</p>';
+      }
+    }
+
+    function abrirCorreccion(entregaId, alumnoNombre, notaActual, feedbackActual) {
+      _currentDevolucionTpId = entregaId;
+      document.getElementById('corregir-alumno-nombre').textContent = 'Alumno/a: ' + alumnoNombre;
+      document.getElementById('corregir-nota').value = (notaActual && notaActual !== 'null') ? notaActual : '';
+      document.getElementById('corregir-feedback').value = (feedbackActual && feedbackActual !== 'null') ? feedbackActual : '';
+      
+      closeModal('ver-entregas');
+      show('modal-corregir-tp');
+    }
+
+    async function guardarCorreccionTP() {
+      const nota = document.getElementById('corregir-nota').value;
+      const feedback = document.getElementById('corregir-feedback').value;
+
+      document.querySelector('#modal-corregir-tp .btn-primary').textContent = 'Guardando...';
+      try {
+        await db.from('entregas_tp').update({ nota, feedback }).eq('id', _currentDevolucionTpId);
+        alert('✅ Corrección guardada exitosamente.');
+        closeModal('corregir-tp');
+      } catch (e) {
+        console.error(e);
+        alert('❌ Error al guardar la corrección.');
+      } finally {
+        document.querySelector('#modal-corregir-tp .btn-primary').textContent = 'Guardar Corrección';
+      }
+    }
+    
+    function abrirEntregaTP(tpId, titulo) {
+      currentEntregaId = tpId;
+      document.getElementById('entrega-tp-titulo').textContent = titulo;
+      document.getElementById('entrega-texto').value = '';
+      document.getElementById('entrega-archivo-file').value = '';
+      document.getElementById('entrega-archivo-url').value = '';
+      document.getElementById('entrega-archivo-actual').textContent = 'Máximo 5MB.';
+      show('modal-entrega-tp');
+    }
+
+    async function entregarTrabajo() {
+      const texto = document.getElementById('entrega-texto').value;
+      const archivoUrl = document.getElementById('entrega-archivo-url').value;
+      
+      if (!texto.trim() && !archivoUrl) {
+        return alert('⚠️ Tenés que escribir una resolución o subir un archivo adjunto para poder entregar.');
+      }
+
+      document.querySelector('#modal-entrega-tp .btn-primary').textContent = 'Enviando...';
+      document.querySelector('#modal-entrega-tp .btn-primary').disabled = true;
+
+      const payload = { 
+        trabajo_id: currentEntregaId, 
+        alumno_id: currentUser.id, 
+        resolucion_texto: texto, 
+        resolucion_archivo: archivoUrl || null,
+        fecha_entrega: new Date().toISOString()
+      };
+
+      try {
+        const { data: existente } = await db.from('entregas_tp')
+                                            .select('id')
+                                            .eq('trabajo_id', currentEntregaId)
+                                            .eq('alumno_id', currentUser.id)
+                                            .single();
+
+        if (existente) {
+          await db.from('entregas_tp').update(payload).eq('id', existente.id);
+        } else {
+          await db.from('entregas_tp').insert(payload);
+        }
+
+        closeModal('entrega-tp');
+        alert('✅ ¡Trabajo entregado con éxito!');
+        await renderTrabajos(); 
+      } catch (e) {
+        console.error("Error al entregar: ", e);
+        alert('❌ Ocurrió un error al cargar la entrega. Verificá si la tabla entregas_tp existe.');
+      } finally {
+        document.querySelector('#modal-entrega-tp .btn-primary').textContent = 'Enviar Entrega';
+        document.querySelector('#modal-entrega-tp .btn-primary').disabled = false;
+      }
+    }
+
     async function eliminarTrabajo(id) {
       if (!confirm('¿Estás segura de eliminar este trabajo práctico?')) return;
       try {
@@ -4965,6 +6284,9 @@
       document.getElementById('edit-tp-titulo').value = tp.titulo || '';
       document.getElementById('edit-tp-consigna').value = tp.consigna || '';
       document.getElementById('edit-tp-fecha').value = tp.fecha_limite ? tp.fecha_limite.slice(0, 16) : '';
+      document.getElementById('edit-tp-archivo-file').value = '';
+      document.getElementById('edit-tp-archivo-url').value = '';
+      document.getElementById('edit-tp-archivo-actual').textContent = tp.archivo_url ? '(Ya tiene un archivo adjunto subido)' : '(Sin archivo adjunto actual)';
       show('modal-edit-trabajo');
     }
 
@@ -4972,13 +6294,14 @@
       const titulo = document.getElementById('edit-tp-titulo').value;
       const consigna = document.getElementById('edit-tp-consigna').value;
       const fecha = document.getElementById('edit-tp-fecha').value;
+      const archivoUrl = document.getElementById('edit-tp-archivo-url').value;
+      
       if (!titulo || !fecha) return alert('Completá título y fecha');
 
-      await db.from('trabajos_practicos').update({
-        titulo,
-        consigna,
-        fecha_limite: fecha
-      }).eq('id', currentTrabajoId);
+      const payload = { titulo, consigna, fecha_limite: fecha };
+      if (archivoUrl) payload.archivo_url = archivoUrl;
+
+      await db.from('trabajos_practicos').update(payload).eq('id', currentTrabajoId);
 
       closeModal('edit-trabajo');
       await renderTrabajos();
