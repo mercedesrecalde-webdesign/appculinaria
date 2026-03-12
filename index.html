@@ -2670,6 +2670,7 @@
                     <input type="file" id="encuesta-csv" accept=".csv" style="display:none;" onchange="procesarCSVEncuestas(event)">
                  </label>
                  <button class="btn btn-secondary btn-small" onclick="cargarEjemploEncuesta()">Ver Ejemplo</button>
+                 <button class="btn btn-danger btn-small" onclick="borrarEncuesta()" title="Borrar encuesta guardada">🗑️ Borrar</button>
               </div>
             </div>
             
@@ -3645,8 +3646,8 @@
 
       // Cargar lista de docentes para alumnos
       if (!isDocenteOrAdmin && docenteSelect) {
-        const { data: docentes } = await db.from('usuarios').select('id, nombre, apellido').in('rol', ['docente', 'admin']);
-        docenteSelect.innerHTML = docentes?.map(d => `<option value="${d.id}">${d.nombre} ${d.apellido || ''}</option>`).join('') || '<option>No hay docentes</option>';
+        const { data: docentes } = await db.from('usuarios').select('id, nombre, apellido').in('rol', ['docente', 'admin']).order('apellido');
+        docenteSelect.innerHTML = docentes?.map(d => `<option value="${d.id}">${d.apellido || ''}, ${d.nombre || ''}</option>`).join('') || '<option>No hay docentes</option>';
       }
 
       // Cargar cursos para docentes
@@ -3821,6 +3822,12 @@
       try {
         const { data, error } = await db.from('usuarios').select('*').eq('email', email).single();
         if (error || !data) { showError('login', 'Usuario no encontrado. ¿Ya te registraste?'); return; }
+        
+        if (data.bloqueado) {
+          showError('login', 'Tu cuenta ha sido suspendida. Contactá a la administración.');
+          return;
+        }
+
         if (data.rol === 'docente' || data.rol === 'admin') {
           showError('login', 'Este email corresponde a un docente. Usá el acceso de docentes.');
           return;
@@ -3848,6 +3855,12 @@
       try {
         const { data, error } = await db.from('usuarios').select('*').eq('email', email).single();
         if (error || !data) { showError('login-docente', 'Usuario no encontrado'); return; }
+
+        if (data.bloqueado) {
+          showError('login-docente', 'Tu acceso ha sido bloqueado por administración.');
+          return;
+        }
+
         if (data.rol !== 'docente' && data.rol !== 'admin' && data.rol !== 'administrativo') {
           showError('login-docente', 'Este email no tiene permisos de staff');
           return;
@@ -4829,7 +4842,7 @@
       const alumnoIds = inscripciones.map(i => i.alumno_id);
       const cursoIds = [...new Set(inscripciones.map(i => i.curso_id))];
       
-      const { data: usuarios } = await db.from('usuarios').select('*').in('id', alumnoIds).order('nombre');
+      const { data: usuarios } = await db.from('usuarios').select('*').in('id', alumnoIds).order('apellido');
       const { data: cursosData } = await db.from('cursos').select('*').in('id', cursoIds);
       
       const usuariosMap = {};
@@ -4862,14 +4875,36 @@
       // Render the ordered list of students
       const alumnosOrdenados = inscripciones
         .map(i => ({ i, u: usuariosMap[i.alumno_id] || {}, c: cursosMap[i.curso_id] || {} }))
-        .sort((a, b) => (a.u.nombre || '').localeCompare(b.u.nombre || ''));
+        .sort((a, b) => {
+          const apA = (a.u.apellido || '').toLowerCase();
+          const apB = (b.u.apellido || '').toLowerCase();
+          if (apA !== apB) return apA.localeCompare(apB);
+          return (a.u.nombre || '').toLowerCase().localeCompare((b.u.nombre || '').toLowerCase());
+        });
 
       document.getElementById('alumnos-lista').innerHTML = alumnosOrdenados.map(({ i, u, c }) => `
-        <div class="table-row" onclick="showPerfil('${u.id}')">
-          <span class="alumno-nombre"><div class="alumno-avatar">${u.nombre?.charAt(0) || '?'}</div>${u.nombre || ''} ${u.apellido || ''}</span>
-          <span>${u.dni || '-'}</span>
-          <span>${u.email || ''}</span>
-          <span class="curso-tag ${c.color || ''}">${c.nombre?.split(' ')[0] || ''}</span>
+        <div class="table-row" onclick="showPerfil('${u.id}')" style="${u.bloqueado ? 'background-color:#fff5f5;' : ''}">
+          <span class="alumno-nombre" style="flex:1.5;">
+            <div class="alumno-avatar" style="${u.bloqueado ? 'background:var(--gris);' : ''}">${u.nombre?.charAt(0) || '?'}</div>
+            <div style="display:flex; flex-direction:column;">
+              <span>${u.apellido || ''}, ${u.nombre || ''}</span>
+              ${u.bloqueado ? '<span style="color:var(--rojo); font-size:10px; font-weight:bold;">🚫 BLOQUEADO</span>' : ''}
+            </div>
+          </span>
+          <span style="flex:1;">${u.dni || '-'}</span>
+          <span style="flex:1.5; font-size:12px; overflow:hidden; text-overflow:ellipsis;">${u.email || ''}</span>
+          <span class="curso-tag ${c.color || ''}" style="flex:1;">${c.nombre?.split(' ')[0] || ''}</span>
+          
+          ${(userRole === 'admin' || userRole === 'administrativo') ? `
+            <div style="display:flex; gap:5px; flex:1; justify-content:flex-end;" onclick="event.stopPropagation()">
+              <button class="btn btn-icon ${u.bloqueado ? 'btn-success' : 'btn-warning'}" onclick="toggleBloqueoUsuario('${u.id}', ${u.bloqueado})" title="${u.bloqueado ? 'Desbloquear' : 'Bloquear'}">
+                ${u.bloqueado ? '🔓' : '🚫'}
+              </button>
+              <button class="btn btn-icon btn-danger" onclick="eliminarUsuario('${u.id}', '${u.nombre} ${u.apellido || ''}')" title="Eliminar Alumno">
+                🗑️
+              </button>
+            </div>
+          ` : ''}
         </div>
       `).join('');
     }
@@ -4919,7 +4954,7 @@
         }
         
         const alumnoIds = inscripciones.map(i => i.alumno_id);
-        const { data: usuarios } = await db.from('usuarios').select('id, nombre, apellido').in('id', alumnoIds).order('nombre');
+        const { data: usuarios } = await db.from('usuarios').select('id, nombre, apellido').in('id', alumnoIds).order('apellido');
         
         // 2. Traer notas existentes para este módulo
         const { data: notasExistentes } = await db.from('calificaciones_modulares')
@@ -5429,14 +5464,13 @@
           cursos.map(c => `<option value="${c.id}">${c.emoji || '📚'} ${c.nombre}</option>`).join('');
 
         // Tasa Global de Aprobación
-        // Calcular en base a las notas en `calificaciones_modulares`
         const { data: califGlobales } = await db.from('calificaciones_modulares').select('promedio');
         if (califGlobales && califGlobales.length > 0) {
           const promediosAprobados = califGlobales.filter(c => c.promedio && c.promedio >= 6).length;
           const tasaAprobacion = (promediosAprobados / califGlobales.length) * 100;
-          document.getElementById('analytics-aprobacion').textContent = `${tasaAprobacion.toFixed(1)}%`;
+          if (document.getElementById('analytics-aprobacion')) document.getElementById('analytics-aprobacion').textContent = `${tasaAprobacion.toFixed(1)}%`;
         } else {
-          document.getElementById('analytics-aprobacion').textContent = '0%';
+          if (document.getElementById('analytics-aprobacion')) document.getElementById('analytics-aprobacion').textContent = '0%';
         }
 
         // Tasa Global de Asistencia
@@ -5444,9 +5478,15 @@
         if (asistGlobales && asistGlobales.length > 0) {
           const presentes = asistGlobales.filter(a => a.estado === 'presente' || a.estado === 'tardanza').length;
           const tasaAsistencia = (presentes / asistGlobales.length) * 100;
-          document.getElementById('analytics-asistencia').textContent = `${tasaAsistencia.toFixed(1)}%`;
+          if (document.getElementById('analytics-asistencia')) document.getElementById('analytics-asistencia').textContent = `${tasaAsistencia.toFixed(1)}%`;
         } else {
-          document.getElementById('analytics-asistencia').textContent = '0%';
+          if (document.getElementById('analytics-asistencia')) document.getElementById('analytics-asistencia').textContent = '0%';
+        }
+
+        // Cargar última encuesta guardada
+        const { data: configCSV } = await db.from('configuracion').select('valor').eq('clave', 'ultimo_csv_encuesta').single();
+        if (configCSV && configCSV.valor) {
+           procesarTextoCSV(configCSV.valor, true);
         }
 
         // Nivel de Participación Global (Obras/Trabajos Prácticos)
@@ -5574,8 +5614,16 @@
       reader.readAsText(file);
     }
 
-    function procesarTextoCSV(csvText) {
+    async function procesarTextoCSV(csvText, fromDB = false) {
       if (!csvText) return;
+
+      // Guardar en DB si no viene de ella
+      if (!fromDB) {
+        try {
+          await db.from('configuracion').upsert({ clave: 'ultimo_csv_encuesta', valor: csvText }, { onConflict: 'clave' });
+          console.log("CSV guardado en base de datos.");
+        } catch(e) { console.error("Error guardando CSV en DB", e); }
+      }
       
       // Manejar todo tipo de saltos de línea (\r\n de Windows, \n de Linux/Mac)
       const lineas = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
@@ -5612,13 +5660,29 @@
 
       // Parsear líneas iterando por el separador detectado
       lineas.slice(1).forEach(linea => {
-         // Partimos por el separador, ignorando si el separador está dentro de comillas (ej: "hola, qué tal")
          const regexStr = separador === '\\t' ? '\\t' : `${separador}(?=(?:(?:[^"]*"){2})*[^"]*$)`;
          const cols = linea.split(new RegExp(regexStr)).map(c => c.trim().replace(/^"|"$/g, ''));
          
          indicesValidos.forEach(idx => {
-            if (cols[idx] !== undefined && cols[idx] !== '') {
-               colData[cabeceras[idx]].push(cols[idx]);
+            const val = cols[idx];
+            if (val !== undefined && val !== '') {
+               // Regex para separar por:
+               // 1. Comas (,)
+               // 2. La palabra " y " (con espacios alrededor)
+               // 3. Puntos seguidos opcionalmente de coma (., o . ,)
+               // 4. Punto solo si no es el final de la cadena
+               const parts = val.split(/\s*,\s*|\s+\by\b\s+|\.\s*,|\.\s+/i);
+               
+               if (parts.length > 1) {
+                  parts.forEach(p => {
+                     let cleanP = p.trim().replace(/^"|"$/g, '').replace(/^[.,\s]+|[.,\s]+$/g, ''); 
+                     if (cleanP && cleanP.length > 2) {
+                        colData[cabeceras[idx]].push(cleanP);
+                     }
+                  });
+               } else {
+                  colData[cabeceras[idx]].push(val);
+               }
             }
          });
       });
@@ -5725,12 +5789,24 @@
        });
     }
 
+    async function borrarEncuesta() {
+      if (!confirm('¿Estás segura de borrar la encuesta guardada? Los gráficos desaparecerán hasta que cargues un nuevo archivo.')) return;
+      try {
+        await db.from('configuracion').delete().eq('clave', 'ultimo_csv_encuesta');
+        document.getElementById('encuestas-charts-container').style.display = 'none';
+        document.getElementById('encuestas-charts-grid').innerHTML = '';
+        alert('✅ Encuesta eliminada');
+      } catch (e) {
+        alert('❌ Error al borrar: ' + e.message);
+      }
+    }
+
     // ========== ADMIN ==========
     async function showAdmin() {
       hideViews(); show('view-admin'); setNav('nav-admin'); closeSidebar();
 
       // Cargar docentes y administrativos
-      const { data: docentes } = await db.from('usuarios').select('*').in('rol', ['docente', 'admin', 'administrativo']).order('nombre');
+      const { data: docentes } = await db.from('usuarios').select('*').in('rol', ['docente', 'admin', 'administrativo']).order('apellido');
       document.getElementById('admin-docentes-lista').innerHTML = docentes?.length ? docentes.map(d => `
         <div class="admin-list-item">
           <div style="display:flex; flex-direction:column;">
@@ -6131,9 +6207,53 @@
       alert('✅ Evento actualizado');
     }
 
-    // ========== TRABAJOS PRÁCTICOS ==========
-    let currentEntregaId = null;
-    let _currentDevolucionTpId = null;
+    // ========== GESTIÓN DE USUARIOS (ADMIN) ==========
+    async function toggleBloqueoUsuario(id, estadoActual) {
+      const accion = estadoActual ? 'desbloquear' : 'bloquear';
+      if (!confirm(`¿Estás segura de ${accion} a este usuario?`)) return;
+      
+      try {
+        const { error } = await db.from('usuarios').update({ bloqueado: !estadoActual }).eq('id', id);
+        if (error) throw error;
+        alert(`✅ Usuario ${estadoActual ? 'desbloqueado' : 'bloqueado'}`);
+        await filtrarAlumnos(); // Refrescar lista
+        if (id === currentAlumnoId) await showPerfil(id); 
+      } catch (e) {
+        alert('❌ Error: ' + e.message);
+      }
+    }
+
+    async function eliminarUsuario(id, nombre) {
+      if (!confirm(`⚠️ ¿ELIMINAR DEFINITIVAMENTE a ${nombre}?\nEsta acción no se puede deshacer y borrará su historial.`)) return;
+      if (!confirm(`Esta es la ÚLTIMA CONFIRMACIÓN. ¿Borrar a ${nombre}?`)) return;
+
+      try {
+        // Borrar inscripciones primero (Foreign Key constraint parcial)
+        await db.from('inscripciones').delete().eq('alumno_id', id);
+        // Borrar usuario
+        const { error } = await db.from('usuarios').delete().eq('id', id);
+        if (error) throw error;
+        
+        alert('✅ Usuario eliminado correctamente');
+        await filtrarAlumnos();
+        hideViews();
+        showDashboard();
+      } catch (e) {
+        alert('❌ Error al eliminar: ' + e.message);
+      }
+    }
+
+    async function eliminarDocente(id) {
+      if (!confirm('¿Eliminar definitivamente a este miembro del personal?')) return;
+      try {
+        const { error } = await db.from('usuarios').delete().eq('id', id);
+        if (error) throw error;
+        alert('✅ Personal eliminado');
+        showAdmin();
+      } catch (e) {
+        alert('❌ Error: ' + e.message);
+      }
+    }
 
     async function verEntregasTP(tpId, titulo) {
       document.getElementById('ver-entregas-titulo').textContent = titulo;
