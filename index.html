@@ -2200,6 +2200,10 @@
         </div>
         <div class="input-group"><label>Contraseña</label><input type="password" id="reg-password"></div>
         <div class="input-group"><label>Curso</label><select id="reg-curso"></select></div>
+        <div class="input-group">
+          <label>Código de Inscripción</label>
+          <input type="text" id="reg-codigo-inscripcion" placeholder="Pedí el código a tu docente" required>
+        </div>
         <button class="btn btn-primary" style="width:100%" onclick="handleRegistro()" id="btn-registro">COMPLETAR
           REGISTRO</button>
         <p class="register-link" onclick="showLogin()">← Volver al inicio</p>
@@ -3137,6 +3141,7 @@
             </select>
           </div>
         </div>
+        <div class="input-group"><label>Código de Seguridad (Opcional)</label><input type="text" id="curso-codigo" placeholder="Ej: ABC123" style="text-transform:uppercase;"></div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('curso')">Cancelar</button><button class="btn btn-primary" onclick="guardarCurso()">Crear
@@ -3183,6 +3188,7 @@
             </select>
           </div>
         </div>
+        <div class="input-group"><label>Código de Seguridad</label><input type="text" id="edit-curso-codigo" placeholder="Ej: ABC123" style="text-transform:uppercase;"></div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('edit-curso')">Cancelar</button><button class="btn btn-primary"
@@ -3883,28 +3889,74 @@
       const dni = document.getElementById('reg-dni').value.trim();
       const email = document.getElementById('reg-email').value.trim().toLowerCase();
       const cursoId = document.getElementById('reg-curso').value;
+      const codigoGobernanza = document.getElementById('reg-codigo-inscripcion').value.trim().toUpperCase();
 
-      if (!nombre || !apellido || !email || !cursoId) return showError('registro', 'Completá todos los campos');
+      if (!nombre || !apellido || !email || !cursoId || !codigoGobernanza) return showError('registro', 'Completá todos los campos');
 
       const btn = document.getElementById('btn-registro');
       btn.innerHTML = '<span class="spinner"></span>';
       btn.disabled = true;
 
       try {
-        const { data: existing } = await db.from('usuarios').select('id').eq('email', email).single();
-        if (existing) { showError('registro', 'Este email ya está registrado'); return; }
+        // Validar código de inscripción
+        const { data: cursoData, error: cursoError } = await db.from('cursos')
+          .select('codigo_inscripcion')
+          .eq('id', parseInt(cursoId))
+          .single();
 
-        const { data: user, error } = await db.from('usuarios').insert({ nombre, apellido, dni, email, rol: 'alumno' }).select().single();
-        if (error) { showError('registro', 'Error: ' + error.message); return; }
+        if (cursoError || !cursoData) {
+          showError('registro', 'Error al verificar el curso');
+          return;
+        }
 
-        await db.from('inscripciones').insert({ alumno_id: user.id, curso_id: parseInt(cursoId) });
+        if (cursoData.codigo_inscripcion && cursoData.codigo_inscripcion.toUpperCase() !== codigoGobernanza) {
+          showError('registro', 'El código de inscripción es incorrecto. Solicitá el código correcto a tu docente.');
+          return;
+        }
 
-        currentUser = user;
+        const { data: existing } = await db.from('usuarios').select('id, rol').eq('email', email).single();
+        
+        let userId;
+        let userData;
+
+        if (existing) {
+          // Si ya existe, verificamos que sea alumno
+          if (existing.rol !== 'alumno') {
+            showError('registro', 'Este email corresponde a una cuenta de staff. Contactá a administración.');
+            return;
+          }
+          userId = existing.id;
+          userData = existing;
+
+          // Verificar si ya está inscripto en este curso
+          const { data: inscripcion } = await db.from('inscripciones')
+            .select('*')
+            .eq('alumno_id', userId)
+            .eq('curso_id', parseInt(cursoId))
+            .single();
+
+          if (inscripcion) {
+            showError('registro', 'Ya estás inscripto en este curso. Podés iniciar sesión normalmente.');
+            return;
+          }
+        } else {
+          // Si no existe, creamos el usuario
+          const { data: user, error } = await db.from('usuarios').insert({ nombre, apellido, dni, email, rol: 'alumno' }).select().single();
+          if (error) { showError('registro', 'Error: ' + error.message); return; }
+          userId = user.id;
+          userData = user;
+        }
+
+        // Crear la nueva inscripción
+        await db.from('inscripciones').insert({ alumno_id: userId, curso_id: parseInt(cursoId) });
+
+        currentUser = userData;
         userRole = 'alumno';
-        localStorage.setItem('rainero_user', JSON.stringify(user));
+        localStorage.setItem('rainero_user', JSON.stringify(userData));
         await enterApp();
       } catch (e) {
         showError('registro', 'Error al registrar');
+        console.error(e);
       } finally {
         btn.innerHTML = 'COMPLETAR REGISTRO';
         btn.disabled = false;
@@ -5805,6 +5857,9 @@
     async function showAdmin() {
       hideViews(); show('view-admin'); setNav('nav-admin'); closeSidebar();
 
+      // Cargar cursos actualizados antes de mostrar
+      await cargarCursos();
+
       // Cargar docentes y administrativos
       const { data: docentes } = await db.from('usuarios').select('*').in('rol', ['docente', 'admin', 'administrativo']).order('apellido');
       document.getElementById('admin-docentes-lista').innerHTML = docentes?.length ? docentes.map(d => `
@@ -5825,7 +5880,15 @@
       // Cargar cursos
       document.getElementById('admin-cursos-lista').innerHTML = cursos.map(c => `
         <div class="admin-list-item">
-          <span>${c.emoji || '📚'} ${c.nombre}</span>
+          <div style="display:flex; flex-direction:column;">
+            <span>${c.emoji || '📚'} ${c.nombre}</span>
+            <span class="role-badge" style="background:var(--fucsia-claro); color:var(--fucsia); border: 1px solid var(--fucsia); width: fit-content; margin-top: 4px;">
+              Código: ${c.codigo_inscripcion || '---'}
+            </span>
+          </div>
+          <div style="display:flex;gap:5px;">
+            <button class="btn btn-icon btn-secondary" onclick="currentCursoId = '${c.id}'; openEditCursoModal()" title="Editar">✏️</button>
+          </div>
         </div>
       `).join('');
 
@@ -6042,7 +6105,7 @@
       closeModal('evento'); await renderEventos(); await renderEventosPreview(); alert('✅ Evento creado');
     }
 
-    function openCursoModal() { ['curso-nombre', 'curso-descripcion', 'curso-duracion', 'curso-emoji'].forEach(id => document.getElementById(id).value = ''); show('modal-curso'); }
+    function openCursoModal() { ['curso-nombre', 'curso-descripcion', 'curso-duracion', 'curso-emoji', 'curso-codigo'].forEach(id => document.getElementById(id).value = ''); show('modal-curso'); }
     async function guardarCurso() {
       const nombre = document.getElementById('curso-nombre').value;
       const descripcion = document.getElementById('curso-descripcion').value;
@@ -6052,6 +6115,8 @@
       const tipo = document.getElementById('curso-tipo').value;
       if (!nombre) return alert('Ingresá un nombre');
 
+      const codigo = document.getElementById('curso-codigo').value || Math.random().toString(36).substring(2, 8).toUpperCase();
+      
       // Guardar curso con el ID del creador (docente o admin)
       await db.from('cursos').insert({
         nombre,
@@ -6060,6 +6125,7 @@
         emoji,
         color,
         tipo_curso: tipo,
+        codigo_inscripcion: codigo,
         creador_id: currentUser.id  // Registrar quién creó el curso
       });
 
@@ -6070,14 +6136,18 @@
     }
 
     function openEditCursoModal() {
-      const curso = cursos.find(c => c.id === currentCursoId);
-      if (!curso) return;
+      const curso = cursos.find(c => String(c.id) == String(currentCursoId));
+      if (!curso) {
+        alert("Error: No se encontró el curso seleccionado.");
+        return;
+      }
       document.getElementById('edit-curso-nombre').value = curso.nombre || '';
       document.getElementById('edit-curso-descripcion').value = curso.descripcion || '';
       document.getElementById('edit-curso-emoji').value = curso.emoji || '📚';
       document.getElementById('edit-curso-color').value = curso.color || 'turquesa';
       document.getElementById('edit-curso-duracion').value = curso.duracion || '';
       document.getElementById('edit-curso-tipo').value = curso.tipo_curso || 'curso_corto';
+      document.getElementById('edit-curso-codigo').value = curso.codigo_inscripcion || '';
       show('modal-edit-curso');
     }
 
@@ -6088,21 +6158,42 @@
       const color = document.getElementById('edit-curso-color').value;
       const duracion = document.getElementById('edit-curso-duracion').value;
       const tipo = document.getElementById('edit-curso-tipo').value;
+      const codigo = document.getElementById('edit-curso-codigo').value || Math.random().toString(36).substring(2, 8).toUpperCase();
       if (!nombre) return alert('Ingresá un nombre');
 
-      await db.from('cursos').update({ nombre, descripcion, emoji, color, duracion, tipo_curso: tipo }).eq('id', currentCursoId);
+      try {
+        const updateData = { 
+          nombre, 
+          descripcion, 
+          emoji, 
+          color, 
+          duracion, 
+          tipo_curso: tipo,
+          codigo_inscripcion: codigo 
+        };
 
-      closeModal('edit-curso');
-      await cargarCursos();
+        const { error } = await db.from('cursos').update(updateData).eq('id', currentCursoId);
 
-      // Actualizar la vista actual
-      document.getElementById('curso-header-title').textContent = nombre;
-      document.getElementById('curso-titulo').textContent = nombre;
-      document.getElementById('curso-desc').textContent = descripcion;
-      document.getElementById('curso-emoji').textContent = emoji;
-      document.getElementById('curso-hero').className = 'curso-header ' + color;
+        if (error) throw error;
 
-      alert('✅ Portada actualizada');
+        closeModal('edit-curso');
+        await cargarCursos();
+        await showAdmin();
+
+        // Actualizar la vista actual (si estamos viéndola)
+        if (document.getElementById('view-curso').style.display !== 'none') {
+          document.getElementById('curso-header-title').textContent = nombre;
+          document.getElementById('curso-titulo').textContent = nombre;
+          document.getElementById('curso-desc').textContent = descripcion;
+          document.getElementById('curso-emoji').textContent = emoji;
+          document.getElementById('curso-hero').className = 'curso-header ' + color;
+        }
+
+        alert('✅ Curso actualizado correctamente');
+      } catch (e) {
+        console.error('Error al actualizar curso:', e);
+        alert('❌ Error al guardar los cambios: ' + e.message);
+      }
     }
 
     // ========== FUNCIONES DE EDICIÓN Y ELIMINACIÓN ==========
