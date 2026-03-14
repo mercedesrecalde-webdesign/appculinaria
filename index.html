@@ -2463,6 +2463,17 @@
               <div id="lista-asistencia"></div><button class="btn btn-success" style="width:100%;margin-top:16px;"
                 onclick="guardarAsistencia()">💾 Guardar Asistencia</button>
               <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="descargarPlanillaMensual()">📥 Descargar Planilla del Mes</button>
+              
+              <div class="libro-temas-panel docente-only" style="margin-top: 25px; padding-top: 20px; border-top: 2px solid var(--gris-claro);">
+                <h3 style="color: var(--violeta); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                  Libro de Temas
+                </h3>
+                <textarea id="tema-clase" placeholder="¿Qué temas se dieron hoy?" 
+                  style="width: 100%; height: 100px; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-family: inherit; resize: none; transition: border-color 0.3s;"
+                  onfocus="this.style.borderColor='var(--turquesa)'" onblur="this.style.borderColor='#ddd'"></textarea>
+                <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="guardarTema()">📝 Guardar Tema del Día</button>
+              </div>
             </div>
           </div>
         </div>
@@ -4522,6 +4533,15 @@
       const asistMap = {};
       asistencias?.forEach(a => asistMap[a.usuario_id] = a.estado);
 
+      // --- LIBRO DE TEMAS ---
+      const temaInput = document.getElementById('tema-clase');
+      if (temaInput) {
+        temaInput.value = '⏳ Cargando...';
+        const { data: temaData } = await db.from('libro_temas').select('descripcion').eq('curso_id', currentCursoId).eq('fecha', fechaStr).maybeSingle();
+        temaInput.value = temaData?.descripcion || '';
+      }
+      // ----------------------
+
       document.getElementById('lista-asistencia').innerHTML = alumnos.length ? alumnos.map(a => {
         const estado = asistenciaTemp[a.id] || asistMap[a.id] || '';
         return `
@@ -4549,6 +4569,25 @@
       renderAsistencia();
     }
 
+    async function guardarTema() {
+      try {
+        const fechaStr = selectedDate.toISOString().split('T')[0];
+        const descripcion = document.getElementById('tema-clase').value;
+        
+        const { error } = await db.from('libro_temas').upsert({ 
+          curso_id: currentCursoId, 
+          fecha: fechaStr, 
+          descripcion 
+        }, { onConflict: 'curso_id,fecha' });
+
+        if (error) throw error;
+        alert('✅ Tema guardado correctamente');
+      } catch (e) {
+        console.error(e);
+        alert('❌ Error al guardar tema: ' + e.message);
+      }
+    }
+
     async function descargarPlanillaMensual() {
       try {
         const year = currentMonth.getFullYear();
@@ -4574,6 +4613,11 @@
           const key = a.usuario_id + '_' + a.fecha;
           asistMap[key] = a.estado;
         });
+
+        // FETCH TEMAS
+        const { data: temasData } = await db.from('libro_temas').select('*').eq('curso_id', currentCursoId).gte('fecha', primerDia).lte('fecha', ultimoDia);
+        const temasMap = {};
+        temasData?.forEach(t => temasMap[t.fecha] = t.descripcion);
 
         const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
         const nombreCurso = document.getElementById('curso-nombre')?.textContent || 'Curso';
@@ -4608,6 +4652,15 @@
             if (estado === 'tardanza') tardanzas++;
           });
           csv += ';' + presentes + ';' + ausentes + ';' + tardanzas + '\n';
+        });
+
+        // AGREGAR SECCIÓN DE TEMAS
+        csv += '\n\nRESUMEN DE TEMAS DADOS EN EL MES\n';
+        csv += 'Fecha;Tema\n';
+        diasClase.forEach(dc => {
+          const fechaStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(dc.num).padStart(2, '0');
+          const tema = temasMap[fechaStr] || '(No registrado)';
+          csv += dc.label + ';' + tema.replace(/;/g, ',').replace(/\n/g, ' ') + '\n';
         });
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
