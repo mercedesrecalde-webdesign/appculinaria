@@ -2916,6 +2916,7 @@
           <label>📄 Reemplazar Archivo Consigna</label>
           <input type="file" id="edit-tp-archivo-file" accept=".pdf,.doc,.docx" onchange="subirArchivoBase64(this, 'edit-tp')">
           <p id="edit-tp-archivo-actual" style="font-size:11px;color:var(--naranja);"></p>
+          <div id="edit-tp-archivo-preview" style="margin-top:5px;"></div>
           <input type="hidden" id="edit-tp-archivo-url">
         </div>
         <div class="input-group"><label>Fecha límite de entrega</label><input type="datetime-local" id="edit-tp-fecha">
@@ -3283,23 +3284,6 @@
     </div>
   </div>
 
-  <!-- MODAL EDITAR TRABAJO PRÁCTICO -->
-  <div id="modal-edit-trabajo" class="modal-overlay hidden" onclick="closeModal('edit-trabajo')">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <h3>✏️ Editar Trabajo Práctico</h3>
-      <div class="login-form">
-        <div class="input-group"><label>Título del trabajo</label><input type="text" id="edit-tp-titulo"></div>
-        <div class="input-group"><label>Consigna</label><textarea id="edit-tp-consigna"
-            placeholder="Descripción del trabajo práctico"></textarea></div>
-        <div class="input-group"><label>Fecha límite de entrega</label><input type="datetime-local" id="edit-tp-fecha">
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('edit-trabajo')">Cancelar</button>
-        <button class="btn btn-primary" onclick="guardarEditTrabajo()">Guardar Cambios</button>
-      </div>
-    </div>
-  </div>
 
   <script>
     // ========== SUPABASE CONFIG ==========
@@ -4193,12 +4177,12 @@
           icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
           btnTexto = 'Ver';
         }
-        const clickAbrir = c.url ? `onclick="window.open('${c.url}', '_blank')" style="cursor:pointer;"` : '';
+        const clickAbrir = c.url ? `onclick="verPDF('${c.url}', '${c.titulo.replace(/'/g, "\\'")}')" style="cursor:pointer;"` : '';
         return `
         <div class="contenido-item">
           <div class="contenido-icon" ${clickAbrir}>${icono}</div>
           <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
-          ${c.url ? `<button class="btn-download" onclick="window.open('${c.url}', '_blank')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
+          ${c.url ? `<button class="btn-download" onclick="verPDF('${c.url}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
           ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
         </div>
       `}).join('') : '<div class="empty-state"><p>No hay contenido todavía</p></div>';
@@ -4494,6 +4478,65 @@
       reader.readAsDataURL(file);
     }
 
+    // ========== MEJORA MOBILE: VISOR DE PDF ==========
+    // Helper para convertir Data URL (Base64) a Blob
+    function dataURLtoBlob(dataurl) {
+      try {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+      } catch (e) {
+        console.error("Error convirtiendo a Blob:", e);
+        return null;
+      }
+    }
+
+    // Función para abrir PDF en nueva pestaña (Mobile Friendly)
+    function verPDF(dataurl, titulo = 'Documento') {
+      if (!dataurl) return alert('No hay archivo disponible');
+      
+      const originalTitle = document.title;
+      document.title = "Cargando archivo...";
+      
+      try {
+        if (String(dataurl).startsWith('data:')) {
+          // Para PDF e Imágenes en Base64 usamos Blob URL (mejor soporte en móviles)
+          if (dataurl.startsWith('data:application/pdf') || dataurl.startsWith('data:image/')) {
+            const blob = dataURLtoBlob(dataurl);
+            if (!blob) {
+              document.title = originalTitle;
+              return alert('Error al procesar el archivo');
+            }
+            
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, '_blank');
+            if (!win) alert('⚠️ El navegador bloqueó la ventana emergente. Por favor, permití los pop-ups.');
+          } else {
+            // Para otros archivos Base64 descarga forzada
+            const link = document.createElement('a');
+            link.href = dataurl;
+            link.download = titulo;
+            link.click();
+          }
+        } else {
+          // Si es una URL normal (http/https), simplemente abrir
+          window.open(dataurl, '_blank');
+        }
+      } catch (err) {
+        console.error("Error al abrir PDF:", err);
+        // Fallback básico
+        window.open(dataurl, '_blank');
+      } finally {
+        document.title = originalTitle;
+      }
+    }
+
     // ========== ASISTENCIA ==========
     function renderCalendario() {
       const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -4700,7 +4743,7 @@
             <div class="trabajo-header"><h4>${tp.titulo}</h4><span class="estado-badge ${vencido ? 'cerrado' : 'abierto'}">${vencido ? 'Cerrado' : 'Abierto'}</span></div>
             <div class="trabajo-body">
               <p>${tp.consigna || ''}</p>
-              ${tp.archivo_url ? `<a href="${tp.archivo_url}" download="Consigna_${tp.titulo.replace(/ /g, '_')}" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">📄 Descargar Material Adjunto</a>` : ''}
+              ${tp.archivo_url ? `<button onclick="verPDF('${tp.archivo_url}', 'Consigna_${tp.titulo.replace(/ /g, '_')}')" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">👁️ Ver Material Adjunto</button>` : ''}
               <div class="trabajo-fecha ${vencido ? 'vencido' : ''}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 Límite: ${limite.toLocaleString('es-AR')} ${vencido ? '(VENCIDO)' : ''}
@@ -6421,7 +6464,7 @@
           const fecha = new Date(e.fecha_entrega).toLocaleString('es-AR');
           
           let resoHtml = '';
-          if (e.resolucion_archivo) resoHtml += `<a href="${e.resolucion_archivo}" download="Resolucion_${alumno.replace(/ /g, '_')}.pdf" class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;">📄 Archivo</a> `;
+          if (e.resolucion_archivo) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="verPDF('${e.resolucion_archivo}', 'Resolucion_${alumno.replace(/ /g, '_')}')">👁️ Ver Archivo</button> `;
           if (e.resolucion_texto) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="alert('Texto entregado: \\n\\n' + \`${e.resolucion_texto.replace(/`/g, "'")}\`)">📝 Leer Texto</button>`;
           if (!resoHtml) resoHtml = '<i>Vacía</i>';
 
@@ -6550,7 +6593,17 @@
       document.getElementById('edit-tp-fecha').value = tp.fecha_limite ? tp.fecha_limite.slice(0, 16) : '';
       document.getElementById('edit-tp-archivo-file').value = '';
       document.getElementById('edit-tp-archivo-url').value = '';
-      document.getElementById('edit-tp-archivo-actual').textContent = tp.archivo_url ? '(Ya tiene un archivo adjunto subido)' : '(Sin archivo adjunto actual)';
+      
+      const infoP = document.getElementById('edit-tp-archivo-actual');
+      const previewDiv = document.getElementById('edit-tp-archivo-preview');
+      
+      if (tp.archivo_url) {
+        infoP.textContent = '📄 Ya tiene un archivo adjunto.';
+        previewDiv.innerHTML = `<button onclick="verPDF('${tp.archivo_url}', 'Consigna_${tp.titulo?.replace(/ /g, '_')}')" class="btn btn-secondary btn-small" style="font-size:10px; padding:4px 8px;">👁️ Ver archivo actual</button>`;
+      } else {
+        infoP.textContent = '(Sin archivo adjunto actual)';
+        previewDiv.innerHTML = '';
+      }
       show('modal-edit-trabajo');
     }
 
