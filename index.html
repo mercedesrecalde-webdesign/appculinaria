@@ -3301,6 +3301,7 @@
     let selectedDate = new Date();
     let currentMonth = new Date();
     let asistenciaTemp = {};
+    let itemCache = {};
     let codigoDocente = 'RAINERO2026';
 
     // ========== HELPERS ==========
@@ -3447,18 +3448,17 @@
     // Notificar nueva evaluación
     async function notificarNuevaEvaluacion(evaluacionId, cursoId, tituloEval) {
       try {
-        // Obtener alumnos del curso
-        const { data: alumnos } = await db
-          .from('usuarios')
-          .select('id')
-          .eq('curso_id', cursoId)
-          .eq('rol', 'alumno');
+        // Obtener alumnos inscriptos en el curso
+        const { data: inscripciones } = await db
+          .from('inscripciones')
+          .select('alumno_id')
+          .eq('curso_id', cursoId);
 
-        if (!alumnos || alumnos.length === 0) return;
+        if (!inscripciones || inscripciones.length === 0) return;
 
         // Crear notificación para cada alumno
-        const notificaciones = alumnos.map(alumno => ({
-          usuario_id: alumno.id,
+        const notificaciones = inscripciones.map(ins => ({
+          usuario_id: ins.alumno_id,
           tipo: 'evaluacion',
           titulo: '📝 Nueva Evaluación',
           descripcion: `Se publicó la evaluación: ${tituloEval}`,
@@ -3504,18 +3504,17 @@
     // Notificar nuevo trabajo práctico
     async function notificarNuevoTrabajo(trabajoId, cursoId, tituloTrabajo) {
       try {
-        // Obtener alumnos del curso
-        const { data: alumnos } = await db
-          .from('usuarios')
-          .select('id')
-          .eq('curso_id', cursoId)
-          .eq('rol', 'alumno');
+        // Obtener alumnos inscriptos en el curso
+        const { data: inscripciones } = await db
+          .from('inscripciones')
+          .select('alumno_id')
+          .eq('curso_id', cursoId);
 
-        if (!alumnos || alumnos.length === 0) return;
+        if (!inscripciones || inscripciones.length === 0) return;
 
         // Crear notificación para cada alumno
-        const notificaciones = alumnos.map(alumno => ({
-          usuario_id: alumno.id,
+        const notificaciones = inscripciones.map(ins => ({
+          usuario_id: ins.alumno_id,
           tipo: 'trabajo',
           titulo: '👨‍🍳 Nuevo Trabajo Práctico',
           descripcion: `Se publicó: ${tituloTrabajo}`,
@@ -4163,6 +4162,10 @@
     async function renderTeorico() {
       const { data } = await db.from('contenido_teorico').select('*').eq('curso_id', currentCursoId).order('orden');
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      
+      // Actualizar cache para URLs pesadas
+      data?.forEach(item => itemCache[item.id] = item);
+
       document.getElementById('lista-teorico').innerHTML = data?.length ? data.map(c => {
         // Icono según tipo
         let icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>';
@@ -4177,12 +4180,12 @@
           icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
           btnTexto = 'Ver';
         }
-        const clickAbrir = c.url ? `onclick="verPDF('${c.url}', '${c.titulo.replace(/'/g, "\\'")}')" style="cursor:pointer;"` : '';
+        const clickAbrir = c.url ? `onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')" style="cursor:pointer;"` : '';
         return `
         <div class="contenido-item">
           <div class="contenido-icon" ${clickAbrir}>${icono}</div>
           <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
-          ${c.url ? `<button class="btn-download" onclick="verPDF('${c.url}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
+          ${c.url ? `<button class="btn-download" onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
           ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
         </div>
       `}).join('') : '<div class="empty-state"><p>No hay contenido todavía</p></div>';
@@ -4530,11 +4533,46 @@
         }
       } catch (err) {
         console.error("Error al abrir PDF:", err);
-        // Fallback básico
         window.open(dataurl, '_blank');
       } finally {
         document.title = originalTitle;
       }
+    }
+
+    // Helper para abrir desde la memoria caché (evita saturar el HTML con Base64)
+    async function verArchivoDesdeCache(tabla, id, titulo) {
+      let item = itemCache[id];
+      
+      // Si el item no tiene el archivo (porque no lo trajimos en el select original), lo traemos ahora
+      if (!item || (!item.archivo_url && !item.resolucion_archivo && !item.url)) {
+        const originalTitle = document.title;
+        document.title = "⌛ Obteniendo archivo...";
+        
+        try {
+          const field = (tabla === 'trabajos_practicos') ? 'archivo_url' : 
+                        (tabla === 'entregas_tp') ? 'resolucion_archivo' : 'url';
+          
+          const { data, error } = await db.from(tabla).select(field).eq('id', id).single();
+          if (error || !data) {
+            document.title = originalTitle;
+            return alert('No se pudo encontrar el archivo adjunto.');
+          }
+          
+          // Lo guardamos en el cache para la próxima vez que se haga clic
+          if (!item) item = { id };
+          itemCache[id] = { ...item, ...data };
+          item = itemCache[id];
+        } catch (e) {
+          console.error(e);
+          document.title = originalTitle;
+          return alert('Error de conexión al obtener el archivo.');
+        } finally {
+          document.title = originalTitle;
+        }
+      }
+      
+      const url = item.archivo_url || item.resolucion_archivo || item.url;
+      verPDF(url, titulo || item.titulo || 'Documento');
     }
 
     // ========== ASISTENCIA ==========
@@ -4721,21 +4759,25 @@
 
     // ========== TRABAJOS Y EVALUACIONES ==========
     async function renderTrabajos() {
-      const { data } = await db.from('trabajos_practicos').select('*').eq('curso_id', currentCursoId).order('fecha_limite');
+      // Optimizamos traído de datos: NO cargamos el blob pesado hasta que se pida
+      const { data } = await db.from('trabajos_practicos').select('id, titulo, consigna, fecha_limite, archivo_url').eq('curso_id', currentCursoId).order('fecha_limite');
       const now = new Date();
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
       
+      // Guardar en cache para evitar Base64 en el HTML del DOM
+      data?.forEach(t => itemCache[t.id] = t);
+
       let entregasMap = {};
       if (!isDocenteOrAdmin && data?.length) {
         try {
           const tpIds = data.map(t => t.id);
-          const { data: misEntregas } = await db.from('entregas_tp').select('*').in('trabajo_id', tpIds).eq('alumno_id', currentUser.id);
+          const { data: misEntregas } = await db.from('entregas_tp').select('id, trabajo_id, fecha_entrega, nota, feedback').in('trabajo_id', tpIds).eq('alumno_id', currentUser.id);
           misEntregas?.forEach(e => entregasMap[e.trabajo_id] = e);
         } catch(e) { console.error('Error cargando mis entregas', e); }
       }
 
       document.getElementById('lista-trabajos').innerHTML = data?.length ? data.map(tp => {
-        const limite = new Date(tp.fecha_limite);
+        const limite = new Date(tp.fecha_limite.replace('+00:00', '-03:00'));
         const vencido = now > limite;
         const miEntrega = entregasMap[tp.id];
         return `
@@ -4743,7 +4785,7 @@
             <div class="trabajo-header"><h4>${tp.titulo}</h4><span class="estado-badge ${vencido ? 'cerrado' : 'abierto'}">${vencido ? 'Cerrado' : 'Abierto'}</span></div>
             <div class="trabajo-body">
               <p>${tp.consigna || ''}</p>
-              ${tp.archivo_url ? `<button onclick="verPDF('${tp.archivo_url}', 'Consigna_${tp.titulo.replace(/ /g, '_')}')" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">👁️ Ver Material Adjunto</button>` : ''}
+              ${tp.archivo_url ? `<button onclick="verArchivoDesdeCache('trabajos_practicos', '${tp.id}', 'Consigna_${tp.titulo.replace(/ /g, '_')}')" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">👁️ Ver Material Adjunto</button>` : ''}
               <div class="trabajo-fecha ${vencido ? 'vencido' : ''}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 Límite: ${limite.toLocaleString('es-AR')} ${vencido ? '(VENCIDO)' : ''}
@@ -6449,10 +6491,13 @@
 
       try {
         const { data: entregas } = await db.from('entregas_tp')
-                                           .select('*, usuarios!entregas_tp_alumno_id_fkey(nombre, apellido)')
+                                           .select('id, trabajo_id, alumno_id, fecha_entrega, nota, feedback, resolucion_archivo, resolucion_texto, usuarios!entregas_tp_alumno_id_fkey(nombre, apellido)')
                                            .eq('trabajo_id', tpId)
                                            .order('fecha_entrega', { ascending: false });
         
+        // Cachear entregas
+        entregas?.forEach(e => itemCache[e.id] = e);
+
         const container = document.getElementById('lista-entregas-tp');
         if (!entregas || !entregas.length) {
           container.innerHTML = '<div class="empty-state"><p>Aún no hay entregas para este trabajo.</p></div>';
@@ -6464,7 +6509,7 @@
           const fecha = new Date(e.fecha_entrega).toLocaleString('es-AR');
           
           let resoHtml = '';
-          if (e.resolucion_archivo) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="verPDF('${e.resolucion_archivo}', 'Resolucion_${alumno.replace(/ /g, '_')}')">👁️ Ver Archivo</button> `;
+          if (e.resolucion_archivo) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="verArchivoDesdeCache('entregas_tp', '${e.id}', 'Resolucion_${alumno.replace(/ /g, '_')}')">👁️ Ver Archivo</button> `;
           if (e.resolucion_texto) resoHtml += `<button class="btn btn-small btn-secondary" style="font-size:10px; padding:4px;" onclick="alert('Texto entregado: \\n\\n' + \`${e.resolucion_texto.replace(/`/g, "'")}\`)">📝 Leer Texto</button>`;
           if (!resoHtml) resoHtml = '<i>Vacía</i>';
 
