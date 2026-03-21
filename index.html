@@ -5026,13 +5026,86 @@
         const isDocente = userRole === 'docente' || userRole === 'admin';
 
         if (isDocente) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <h3>Vista de Docente</h3>
-              <p>Como docente, podés ver las notas detalladas de todos los alumnos en la sección general de Alumnos usando la Planilla.</p>
-              <button class="btn btn-primary" style="margin-top:15px;" onclick="showAlumnos()">Ver Planilla de Alumnos</button>
-            </div>
-          `;
+          // Cargar planilla de notas de TP para este curso
+          try {
+            const { data: tps } = await db.from('trabajos_practicos').select('id, titulo').eq('curso_id', currentCursoId).order('fecha_limite');
+            const { data: inscripciones } = await db.from('inscripciones').select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido)').eq('curso_id', currentCursoId);
+            const alumnos = inscripciones?.map(i => i.usuarios).filter(u => u) || [];
+            alumnos.sort((a, b) => {
+              const apA = (a.apellido || '').toLowerCase();
+              const apB = (b.apellido || '').toLowerCase();
+              if (apA !== apB) return apA.localeCompare(apB);
+              return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+            });
+
+            if (!tps || tps.length === 0) {
+              container.innerHTML = '<div class="empty-state"><h3>Sin Trabajos Prácticos</h3><p>Este curso no tiene TPs creados todavía.</p></div>';
+              return;
+            }
+
+            // Traer todas las entregas del curso
+            const tpIds = tps.map(t => t.id);
+            const { data: entregas } = await db.from('entregas_tp').select('trabajo_id, alumno_id, nota, feedback, fecha_entrega').in('trabajo_id', tpIds);
+            const entregasMap = {};
+            entregas?.forEach(e => { entregasMap[e.alumno_id + '_' + e.trabajo_id] = e; });
+
+            // Estadísticas
+            const totalCeldas = alumnos.length * tps.length;
+            let entregados = 0, corregidos = 0, sinEntregar = 0;
+            alumnos.forEach(al => tps.forEach(tp => {
+              const e = entregasMap[al.id + '_' + tp.id];
+              if (e && e.nota) corregidos++;
+              else if (e) entregados++;
+              else sinEntregar++;
+            }));
+
+            let html = `
+              <div style="margin-bottom:20px; display:flex; gap:15px; flex-wrap:wrap;">
+                <div style="background:#D1FAE5; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; color:var(--verde);">✅ Corregidos: ${corregidos}</div>
+                <div style="background:#FEF3C7; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; color:#92400E;">⏳ Pendientes: ${entregados}</div>
+                <div style="background:#FEE2E2; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; color:var(--rojo);">❌ Sin entregar: ${sinEntregar}</div>
+              </div>
+              <div style="overflow-x:auto; border-radius:12px; border:1px solid #E8E8E8;">
+              <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:${300 + tps.length * 120}px;">
+                <thead>
+                  <tr style="background:linear-gradient(135deg, var(--turquesa), #0097A7); color:white;">
+                    <th style="padding:12px 14px; text-align:left; font-weight:600; position:sticky; left:0; background:linear-gradient(135deg, var(--turquesa), #0097A7); z-index:1;">Alumno/a</th>
+                    ${tps.map(tp => `<th style="padding:12px 10px; text-align:center; font-weight:600; max-width:130px; font-size:11px;">${tp.titulo}</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>`;
+
+            alumnos.forEach((al, idx) => {
+              html += `<tr style="background:${idx % 2 === 0 ? 'white' : 'var(--gris-claro)'};">`;
+              html += `<td style="padding:10px 14px; font-weight:500; white-space:nowrap; position:sticky; left:0; background:${idx % 2 === 0 ? 'white' : 'var(--gris-claro)'}; z-index:1; border-right:1px solid #E8E8E8;">${al.apellido || ''}, ${al.nombre || ''}</td>`;
+              tps.forEach(tp => {
+                const e = entregasMap[al.id + '_' + tp.id];
+                let cellHtml = '';
+                let cellStyle = 'padding:8px 10px; text-align:center; ';
+                if (e && e.nota) {
+                  const notaNum = parseFloat(e.nota);
+                  const color = notaNum >= 6 ? 'var(--verde)' : 'var(--rojo)';
+                  cellHtml = `<span style="font-weight:bold; font-size:16px; color:${color};">${e.nota}</span>`;
+                } else if (e) {
+                  cellHtml = `<span style="color:#92400E; font-size:11px; font-weight:600;">⏳ Pendiente</span>`;
+                } else {
+                  cellHtml = `<span style="color:var(--rojo); font-size:11px; font-weight:600;">❌ No entregó</span>`;
+                }
+                html += `<td style="${cellStyle}">${cellHtml}</td>`;
+              });
+              html += '</tr>';
+            });
+
+            html += `</tbody></table></div>
+              <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="showAlumnos()">📋 Ver Planilla Modulares</button>
+              </div>`;
+
+            container.innerHTML = html;
+          } catch (err) {
+            console.error('Error cargando planilla TP:', err);
+            container.innerHTML = '<div class="empty-state"><p>Error al cargar la planilla de TPs.</p></div>';
+          }
           return;
         }
 
