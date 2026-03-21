@@ -4426,14 +4426,20 @@
 
     function compartirReceta() {
       if (!currentRecetaData) return;
-      const texto = '🍰 ' + currentRecetaData.nombre + '\n\n' + (currentRecetaData.notas || '') + '\n\nReceta de Rainero Culinaria';
+      const r = currentRecetaData;
+      const ingredientes = (r.ingredientes || '').split('\n').filter(i => i.trim());
+      const pasos = (r.procedimiento || '').split('\n').filter(p => p.trim());
       
-      if (navigator.share) {
-        navigator.share({ title: currentRecetaData.nombre, text: texto });
-      } else {
-        navigator.clipboard.writeText(texto);
-        alert('✅ Copiado al portapapeles');
-      }
+      let texto = '🍰 *' + (r.nombre || r.titulo) + '*\n';
+      if (r.notas) texto += '_' + r.notas + '_\n';
+      texto += '\n*🥄 INGREDIENTES:*\n';
+      texto += ingredientes.map(i => '• ' + i).join('\n');
+      texto += '\n\n*📝 PREPARACIÓN:*\n';
+      texto += pasos.map((p, idx) => (idx + 1) + '. ' + p.replace(/^\d+[\.)\-]\s*/, '')).join('\n');
+      texto += '\n\n✨ _Receta de Rainero Culinaria 4.0_';
+      
+      const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(texto);
+      window.open(whatsappUrl, '_blank');
     }
 
     async function imprimirReceta() {
@@ -5660,8 +5666,17 @@
         document.getElementById('perfil-asist-lista').innerHTML = '<h4 style="margin-bottom:12px;">Historial</h4>' + (data?.map(a => `<div class="asistencia-item"><span>${a.fecha}</span><span class="estado-${a.estado}">${a.estado}</span></div>`).join('') || '<p>Sin registros</p>');
       }
       if (tab === 'notas') {
-        const { data } = await db.from('notas').select('*, evaluaciones(titulo)').eq('usuario_id', currentAlumnoId);
-        document.getElementById('perfil-notas-lista').innerHTML = data?.length ? data.map(n => `<div class="nota-item"><div class="nota-info"><h4>${n.evaluaciones?.titulo || ''}</h4><p>${n.fecha || ''}</p></div><div class="nota-valor ${n.nota >= 6 ? 'aprobado' : 'desaprobado'}">${n.nota}</div></div>`).join('') : '<div class="empty-state"><p>Sin notas</p></div>';
+        // Notas de evaluaciones formales
+        const { data: notasEval } = await db.from('notas').select('*, evaluaciones(titulo)').eq('usuario_id', currentAlumnoId);
+        // Notas de Trabajos Prácticos
+        const { data: notasTP } = await db.from('entregas_tp').select('nota, fecha_entrega, feedback, trabajos_practicos!entregas_tp_trabajo_id_fkey(titulo)').eq('alumno_id', currentAlumnoId).not('nota', 'is', null);
+        
+        // Combinar ambas fuentes
+        const todas = [];
+        if (notasEval) notasEval.forEach(n => todas.push({ titulo: n.evaluaciones?.titulo || 'Evaluación', nota: n.nota, fecha: n.fecha || '', tipo: 'eval' }));
+        if (notasTP) notasTP.forEach(e => todas.push({ titulo: e.trabajos_practicos?.titulo || 'TP', nota: parseFloat(e.nota), fecha: e.fecha_entrega ? new Date(e.fecha_entrega).toLocaleDateString('es-AR') : '', tipo: 'tp', feedback: e.feedback }));
+        
+        document.getElementById('perfil-notas-lista').innerHTML = todas.length ? todas.map(n => `<div class="nota-item"><div class="nota-info"><h4>${n.tipo === 'tp' ? '📋 TP: ' : '📝 '}${n.titulo}</h4><p>${n.fecha || ''}</p>${n.feedback ? `<p style="font-size:11px; font-style:italic; color:var(--gris); margin-top:4px;">"${n.feedback}"</p>` : ''}</div><div class="nota-valor ${n.nota >= 6 ? 'aprobado' : 'desaprobado'}">${n.nota}</div></div>`).join('') : '<div class="empty-state"><p>Sin notas</p></div>';
       }
       if (tab === 'msgs') {
         const { data: messages, error } = await db
@@ -5794,11 +5809,17 @@
         select.innerHTML = '<option value="">Seleccione un curso...</option>' + 
           cursos.map(c => `<option value="${c.id}">${c.emoji || '📚'} ${c.nombre}</option>`).join('');
 
-        // Tasa Global de Aprobación
+        // Tasa Global de Aprobación (Calificaciones Modulares + Notas de TP)
         const { data: califGlobales } = await db.from('calificaciones_modulares').select('promedio');
-        if (califGlobales && califGlobales.length > 0) {
-          const promediosAprobados = califGlobales.filter(c => c.promedio && c.promedio >= 6).length;
-          const tasaAprobacion = (promediosAprobados / califGlobales.length) * 100;
+        const { data: notasTPGlobales } = await db.from('entregas_tp').select('nota').not('nota', 'is', null);
+        
+        const todasLasNotas = [];
+        if (califGlobales) califGlobales.forEach(c => { if (c.promedio != null) todasLasNotas.push(c.promedio); });
+        if (notasTPGlobales) notasTPGlobales.forEach(e => { if (e.nota != null) todasLasNotas.push(parseFloat(e.nota)); });
+        
+        if (todasLasNotas.length > 0) {
+          const aprobadas = todasLasNotas.filter(n => n >= 6).length;
+          const tasaAprobacion = (aprobadas / todasLasNotas.length) * 100;
           if (document.getElementById('analytics-aprobacion')) document.getElementById('analytics-aprobacion').textContent = `${tasaAprobacion.toFixed(1)}%`;
         } else {
           if (document.getElementById('analytics-aprobacion')) document.getElementById('analytics-aprobacion').textContent = '0%';
@@ -5820,15 +5841,35 @@
            procesarTextoCSV(configCSV.valor, true);
         }
 
-        // Nivel de Participación Global (Obras/Trabajos Prácticos)
+        // Nivel de Participación Global (Entregas de TP reales vs posibles)
         const { data: trabajosPrevistos } = await db.from('trabajos_practicos').select('id, curso_id');
         const countTrabajos = trabajosPrevistos ? trabajosPrevistos.length : 0;
         
         if (countTrabajos > 0) {
-          // Asumimos 100% de participación ideal si todos los alumnos en cursos con TPs los entregan
-          // Simplificado: porcentaje de entregas vs posibles entregas totales
-          // Omitiremos esto y pondremos un pseudo-valor de 75% por defecto hasta tener DB de Entregas TP
-          document.getElementById('analytics-participacion').textContent = `75%`;
+          // Calcular entregas posibles: por cada TP, contar alumnos inscriptos en su curso
+          const cursosTpIds = [...new Set(trabajosPrevistos.map(t => t.curso_id))];
+          const { data: inscripcionesTp } = await db.from('inscripciones').select('alumno_id, curso_id').in('curso_id', cursosTpIds);
+          
+          let totalPosibles = 0;
+          if (inscripcionesTp) {
+            const alumnosPorCurso = {};
+            inscripcionesTp.forEach(i => {
+              alumnosPorCurso[i.curso_id] = (alumnosPorCurso[i.curso_id] || 0) + 1;
+            });
+            trabajosPrevistos.forEach(tp => {
+              totalPosibles += (alumnosPorCurso[tp.curso_id] || 0);
+            });
+          }
+          
+          // Contar entregas reales
+          const { count: totalEntregas } = await db.from('entregas_tp').select('*', { count: 'exact', head: true });
+          
+          if (totalPosibles > 0) {
+            const tasaParticipacion = ((totalEntregas || 0) / totalPosibles) * 100;
+            document.getElementById('analytics-participacion').textContent = `${Math.min(tasaParticipacion, 100).toFixed(1)}%`;
+          } else {
+            document.getElementById('analytics-participacion').textContent = 'N/A';
+          }
         } else {
           document.getElementById('analytics-participacion').textContent = 'N/A';
         }
@@ -5883,10 +5924,22 @@
            tasaAbandono = (inasistenciasCronicas / totalAlumnos) * 100;
         }
 
-        // Obtener Calificaciones
+        // Obtener Calificaciones (Modulares + Notas de TP del curso)
         const { data: calificacionesCurso } = await db.from('calificaciones_modulares').select('promedio').eq('curso_id', cursoId);
+        
+        // También traer notas de TP de este curso
+        const { data: tpsCurso } = await db.from('trabajos_practicos').select('id').eq('curso_id', cursoId);
+        let notasTPCurso = [];
+        if (tpsCurso && tpsCurso.length > 0) {
+          const tpIds = tpsCurso.map(t => t.id);
+          const { data: entregasConNota } = await db.from('entregas_tp').select('nota').in('trabajo_id', tpIds).not('nota', 'is', null);
+          if (entregasConNota) notasTPCurso = entregasConNota.map(e => parseFloat(e.nota)).filter(n => !isNaN(n));
+        }
+        
         let promedios = calificacionesCurso ? calificacionesCurso.map(c => c.promedio).filter(p => p != null) : [];
-        let promedioGeneral = promedios.length > 0 ? (promedios.reduce((a,b) => a+b, 0) / promedios.length).toFixed(1) : 'N/A';
+        // Combinar ambas fuentes de notas
+        const todasNotasCurso = [...promedios, ...notasTPCurso];
+        let promedioGeneral = todasNotasCurso.length > 0 ? (todasNotasCurso.reduce((a,b) => a+b, 0) / todasNotasCurso.length).toFixed(1) : 'N/A';
         
         let comercialInsight = tasaAbandono > 15 
           ? `<strong style="color:var(--rojo);">⚠️ Riesgo Comercial Alto:</strong> La deserción proyectada está alta (${tasaAbandono.toFixed(1)}%). Considerar campañas de re-engagement, encuestas de satisfacción o tutorías para retener el alumnado.`
