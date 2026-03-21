@@ -2669,7 +2669,12 @@
             Mensaje</button>
         </header>
         <div class="page-content">
+          <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button class="btn btn-small" id="tab-msg-recibidos" onclick="toggleMensajesTab('recibidos')" style="background:var(--turquesa);color:white;">📥 Recibidos</button>
+            <button class="btn btn-small btn-secondary" id="tab-msg-enviados" onclick="toggleMensajesTab('enviados')">📤 Enviados</button>
+          </div>
           <div class="mensajes-lista" id="mensajes-global"></div>
+          <div class="mensajes-lista hidden" id="mensajes-enviados"></div>
         </div>
       </div>
 
@@ -5070,7 +5075,8 @@
                 <thead>
                   <tr style="background:linear-gradient(135deg, var(--turquesa), #0097A7); color:white;">
                     <th style="padding:12px 14px; text-align:left; font-weight:600; position:sticky; left:0; background:linear-gradient(135deg, var(--turquesa), #0097A7); z-index:1;">Alumno/a</th>
-                    ${tps.map(tp => `<th style="padding:12px 10px; text-align:center; font-weight:600; max-width:130px; font-size:11px;">${tp.titulo}</th>`).join('')}
+                    ${tps.map(tp => `<th style="padding:12px 10px; text-align:center; font-weight:600; max-width:130px; font-size:11px;">${tp.titulo}<br><button onclick="mensajeAlumnosSinEntregaTP('${tp.id}', '${tp.titulo.replace(/'/g, "\\'")}')"
+                      style="margin-top:6px; font-size:9px; padding:3px 8px; border:1px solid rgba(255,255,255,0.5); background:rgba(255,255,255,0.2); color:white; border-radius:6px; cursor:pointer;" title="Enviar mensaje a quienes no entregaron">✉️ Notificar</button></th>`).join('')}
                   </tr>
                 </thead>
                 <tbody>`;
@@ -5108,6 +5114,50 @@
           }
           return;
         }
+
+    async function mensajeAlumnosSinEntregaTP(tpId, tpTitulo) {
+      try {
+        // Obtener el TP para saber el curso
+        const { data: tp } = await db.from('trabajos_practicos').select('curso_id').eq('id', tpId).single();
+        if (!tp) return alert('No se encontr\u00f3 el TP');
+
+        // Obtener alumnos inscriptos
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id').eq('curso_id', tp.curso_id);
+        if (!inscripciones || !inscripciones.length) return alert('No hay alumnos inscriptos');
+
+        // Obtener entregas existentes para este TP
+        const { data: entregas } = await db.from('entregas_tp').select('alumno_id').eq('trabajo_id', tpId);
+        const entregaron = new Set(entregas?.map(e => e.alumno_id) || []);
+
+        // Filtrar alumnos que NO entregaron
+        const sinEntrega = inscripciones.filter(i => !entregaron.has(i.alumno_id));
+
+        if (sinEntrega.length === 0) {
+          alert('\u2705 Todos los alumnos entregaron este TP. No hay nadie a quien notificar.');
+          return;
+        }
+
+        if (!confirm(`\u00bfEnviar recordatorio a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"?`)) return;
+
+        const notificaciones = sinEntrega.map(i => ({
+          usuario_id: i.alumno_id,
+          emisor_id: currentUser.id,
+          tipo: 'mensaje',
+          titulo: `\ud83d\udce2 Recordatorio: ${tpTitulo}`,
+          descripcion: `Hola! Te recuerdo que a\u00fan no entregaste el trabajo pr\u00e1ctico "${tpTitulo}". Por favor entreg\u00e1 lo antes posible.`,
+          leida: false,
+          fecha: new Date().toISOString()
+        }));
+
+        const { error } = await db.from('notificaciones').insert(notificaciones);
+        if (error) throw error;
+
+        alert(`\u2705 Recordatorio enviado a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"`);
+      } catch (e) {
+        console.error('Error enviando recordatorios:', e);
+        alert('\u274c Error al enviar los recordatorios: ' + e.message);
+      }
+    }
 
         // 1. Check if the current course is a Carrera or a Curso Corto
         const { data: cursoData } = await db.from('cursos').select('tipo_curso, nombre').eq('id', currentCursoId).single();
@@ -5794,13 +5844,33 @@
     }
 
     // ========== MENSAJES ==========
+    let currentMsgTab = 'recibidos';
+
+    function toggleMensajesTab(tab) {
+      currentMsgTab = tab;
+      if (tab === 'recibidos') {
+        show('mensajes-global'); hide('mensajes-enviados');
+        document.getElementById('tab-msg-recibidos').style.background = 'var(--turquesa)';
+        document.getElementById('tab-msg-recibidos').style.color = 'white';
+        document.getElementById('tab-msg-recibidos').classList.remove('btn-secondary');
+        document.getElementById('tab-msg-enviados').style.background = '';
+        document.getElementById('tab-msg-enviados').style.color = '';
+        document.getElementById('tab-msg-enviados').classList.add('btn-secondary');
+      } else {
+        hide('mensajes-global'); show('mensajes-enviados');
+        document.getElementById('tab-msg-enviados').style.background = 'var(--violeta)';
+        document.getElementById('tab-msg-enviados').style.color = 'white';
+        document.getElementById('tab-msg-enviados').classList.remove('btn-secondary');
+        document.getElementById('tab-msg-recibidos').style.background = '';
+        document.getElementById('tab-msg-recibidos').style.color = '';
+        document.getElementById('tab-msg-recibidos').classList.add('btn-secondary');
+      }
+    }
+
     async function showMensajes() {
       hideViews(); show('view-mensajes'); setNav('nav-mensajes'); closeSidebar();
-      console.log('--- BUSCANDO MENSAJES ---');
-      console.log('Current User ID (alumno logueado):', currentUser.id);
-      const { data: rawNotifs } = await db.from('notificaciones').select('*').eq('usuario_id', currentUser.id);
-      console.log('Todas las notificaciones puras en DB para este usuario:', rawNotifs);
 
+      // === RECIBIDOS ===
       const { data: messages, error } = await db
         .from('notificaciones')
         .select('*')
@@ -5808,10 +5878,8 @@
         .eq('usuario_id', currentUser.id)
         .order('fecha', { ascending: false });
 
-      if (error) console.error('Error fetching messages global:', error);
-      console.log('Mensajes obtenidos de la DB filtrados:', messages?.length);
+      if (error) console.error('Error fetching messages:', error);
 
-      // Fetch emisores separately
       let data = messages || [];
       if (data.length > 0) {
         const emisorIds = [...new Set(data.map(m => m.emisor_id).filter(id => id))];
@@ -5826,8 +5894,6 @@
       document.getElementById('mensajes-global').innerHTML = data?.length ? data.map(m => {
         const fecha = new Date(m.fecha).toLocaleDateString();
         const emisor = m.emisor ? `${m.emisor.nombre} ${m.emisor.apellido || ''}` : 'Sistema';
-        const emisorEmail = m.emisor?.email || '';
-
         return `
           <div class="mensaje-item ${!m.leida ? 'no-leido' : ''}" onclick="marcarComoLeida('${m.id}')" style="cursor:pointer;">
             <div class="mensaje-avatar">💬</div>
@@ -5843,7 +5909,47 @@
               </div>
             </div>
           </div>`;
-      }).join('') : '<div class="empty-state"><p>No hay mensajes</p></div>';
+      }).join('') : '<div class="empty-state"><p>No hay mensajes recibidos</p></div>';
+
+      // === ENVIADOS ===
+      const { data: enviados } = await db
+        .from('notificaciones')
+        .select('*')
+        .eq('tipo', 'mensaje')
+        .eq('emisor_id', currentUser.id)
+        .order('fecha', { ascending: false });
+
+      let envData = enviados || [];
+      if (envData.length > 0) {
+        const destIds = [...new Set(envData.map(m => m.usuario_id).filter(id => id))];
+        if (destIds.length > 0) {
+          const { data: destinos } = await db.from('usuarios').select('id, nombre, apellido').in('id', destIds);
+          const destMap = {};
+          destinos?.forEach(d => destMap[d.id] = d);
+          envData = envData.map(m => ({ ...m, destinatario: destMap[m.usuario_id] }));
+        }
+      }
+
+      document.getElementById('mensajes-enviados').innerHTML = envData.length ? envData.map(m => {
+        const fecha = new Date(m.fecha).toLocaleDateString();
+        const dest = m.destinatario ? `${m.destinatario.nombre} ${m.destinatario.apellido || ''}` : 'Usuario';
+        return `
+          <div class="mensaje-item" style="border-left: 3px solid var(--violeta);">
+            <div class="mensaje-avatar">📤</div>
+            <div class="mensaje-content">
+              <div style="display:flex; justify-content:space-between; align-items:start;">
+                <h4>${m.titulo}</h4>
+                <span style="font-size:11px;color:var(--gris)">${fecha}</span>
+              </div>
+              <p style="font-size:12px; color:var(--violeta); margin-bottom:5px;">Para: ${dest}</p>
+              <p>${m.descripcion || ''}</p>
+              <p style="font-size:11px; color:var(--gris); margin-top:6px;">${m.leida ? '✓ Leído' : '• No leído aún'}</p>
+            </div>
+          </div>`;
+      }).join('') : '<div class="empty-state"><p>No enviaste mensajes todavía</p></div>';
+
+      // Mostrar tab activo
+      toggleMensajesTab(currentMsgTab);
     }
 
     async function responderMensaje(emisorId, asuntoOriginal) {
