@@ -5115,50 +5115,6 @@
           return;
         }
 
-    async function mensajeAlumnosSinEntregaTP(tpId, tpTitulo) {
-      try {
-        // Obtener el TP para saber el curso
-        const { data: tp } = await db.from('trabajos_practicos').select('curso_id').eq('id', tpId).single();
-        if (!tp) return alert('No se encontr\u00f3 el TP');
-
-        // Obtener alumnos inscriptos
-        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id').eq('curso_id', tp.curso_id);
-        if (!inscripciones || !inscripciones.length) return alert('No hay alumnos inscriptos');
-
-        // Obtener entregas existentes para este TP
-        const { data: entregas } = await db.from('entregas_tp').select('alumno_id').eq('trabajo_id', tpId);
-        const entregaron = new Set(entregas?.map(e => e.alumno_id) || []);
-
-        // Filtrar alumnos que NO entregaron
-        const sinEntrega = inscripciones.filter(i => !entregaron.has(i.alumno_id));
-
-        if (sinEntrega.length === 0) {
-          alert('\u2705 Todos los alumnos entregaron este TP. No hay nadie a quien notificar.');
-          return;
-        }
-
-        if (!confirm(`\u00bfEnviar recordatorio a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"?`)) return;
-
-        const notificaciones = sinEntrega.map(i => ({
-          usuario_id: i.alumno_id,
-          emisor_id: currentUser.id,
-          tipo: 'mensaje',
-          titulo: `\ud83d\udce2 Recordatorio: ${tpTitulo}`,
-          descripcion: `Hola! Te recuerdo que a\u00fan no entregaste el trabajo pr\u00e1ctico "${tpTitulo}". Por favor entreg\u00e1 lo antes posible.`,
-          leida: false,
-          fecha: new Date().toISOString()
-        }));
-
-        const { error } = await db.from('notificaciones').insert(notificaciones);
-        if (error) throw error;
-
-        alert(`\u2705 Recordatorio enviado a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"`);
-      } catch (e) {
-        console.error('Error enviando recordatorios:', e);
-        alert('\u274c Error al enviar los recordatorios: ' + e.message);
-      }
-    }
-
         // 1. Check if the current course is a Carrera or a Curso Corto
         const { data: cursoData } = await db.from('cursos').select('tipo_curso, nombre').eq('id', currentCursoId).single();
         
@@ -5227,6 +5183,50 @@
       } catch (e) {
         console.error(e);
         container.innerHTML = '<p>Error al cargar calificaciones.</p>';
+      }
+    }
+
+    async function mensajeAlumnosSinEntregaTP(tpId, tpTitulo) {
+      try {
+        // Obtener el TP para saber el curso
+        const { data: tp } = await db.from('trabajos_practicos').select('curso_id').eq('id', tpId).single();
+        if (!tp) return alert('No se encontr\u00f3 el TP');
+
+        // Obtener alumnos inscriptos
+        const { data: inscripciones } = await db.from('inscripciones').select('alumno_id').eq('curso_id', tp.curso_id);
+        if (!inscripciones || !inscripciones.length) return alert('No hay alumnos inscriptos');
+
+        // Obtener entregas existentes para este TP
+        const { data: entregas } = await db.from('entregas_tp').select('alumno_id').eq('trabajo_id', tpId);
+        const entregaron = new Set(entregas?.map(e => e.alumno_id) || []);
+
+        // Filtrar alumnos que NO entregaron
+        const sinEntrega = inscripciones.filter(i => !entregaron.has(i.alumno_id));
+
+        if (sinEntrega.length === 0) {
+          alert('\u2705 Todos los alumnos entregaron este TP. No hay nadie a quien notificar.');
+          return;
+        }
+
+        if (!confirm(`\u00bfEnviar recordatorio a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"?`)) return;
+
+        const notificaciones = sinEntrega.map(i => ({
+          usuario_id: i.alumno_id,
+          emisor_id: currentUser.id,
+          tipo: 'mensaje',
+          titulo: `\ud83d\udce2 Recordatorio: ${tpTitulo}`,
+          descripcion: `Hola! Te recuerdo que a\u00fan no entregaste el trabajo pr\u00e1ctico "${tpTitulo}". Por favor entreg\u00e1 lo antes posible.`,
+          leida: false,
+          fecha: new Date().toISOString()
+        }));
+
+        const { error } = await db.from('notificaciones').insert(notificaciones);
+        if (error) throw error;
+
+        alert(`\u2705 Recordatorio enviado a ${sinEntrega.length} alumno(s) que no entregaron "${tpTitulo}"`);
+      } catch (e) {
+        console.error('Error enviando recordatorios:', e);
+        alert('\u274c Error al enviar los recordatorios: ' + e.message);
       }
     }
 
