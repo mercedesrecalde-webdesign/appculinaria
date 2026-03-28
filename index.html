@@ -2884,6 +2884,9 @@
             placeholder="Ej: Manual completo 2025"></div>
         <div class="input-group"><label>🔗 Link (Google Drive, YouTube, Sheets, etc.)</label><input type="url" id="cont-url"
             placeholder="https://drive.google.com/... o https://youtube.com/..."></div>
+        <div class="input-group"><label>📅 Disponible para alumnos desde (opcional)</label><input type="date" id="cont-disponible-desde">
+          <p style="font-size:11px;color:var(--gris);margin-top:4px;">Si no se define, será visible inmediatamente. Si se define, será visible desde esa fecha en adelante (sin fecha de fin).</p>
+        </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('contenido')">Cancelar</button><button class="btn btn-primary"
@@ -2984,6 +2987,13 @@
           <input type="hidden" id="tp-archivo-url">
         </div>
         <div class="input-group"><label>Fecha límite de entrega (Deadline)</label><input type="datetime-local" id="tp-fecha"></div>
+        <div class="form-row">
+          <div class="input-group"><label>📅 Disponible desde</label><input type="datetime-local" id="tp-disponible-desde">
+          </div>
+          <div class="input-group"><label>📅 Disponible hasta</label><input type="datetime-local" id="tp-disponible-hasta">
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--gris);margin-top:4px;">Opcional. Controla cuándo los alumnos pueden ver y entregar el TP.</p>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
           onclick="closeModal('trabajo')">Cancelar</button><button class="btn btn-primary"
@@ -3005,6 +3015,12 @@
           <input type="hidden" id="edit-tp-archivo-url">
         </div>
         <div class="input-group"><label>Fecha límite de entrega</label><input type="datetime-local" id="edit-tp-fecha">
+        </div>
+        <div class="form-row">
+          <div class="input-group"><label>📅 Disponible desde</label><input type="datetime-local" id="edit-tp-disponible-desde">
+          </div>
+          <div class="input-group"><label>📅 Disponible hasta</label><input type="datetime-local" id="edit-tp-disponible-hasta">
+          </div>
         </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
@@ -3372,9 +3388,25 @@
 
   <script>
     // ========== SUPABASE CONFIG ==========
-    const SUPABASE_URL = 'https://dukgjrhyhyxvdqzhthje.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_hdrC91CO7zGc3uoO2MsMVA_6K_CQmgd';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_CONFIG = {
+      URL: 'https://dukgjrhyhyxvdqzhthje.supabase.co',
+      KEY: 'sb_publishable_hdrC91CO7zGc3uoO2MsMVA_6K_CQmgd'
+    };
+    const db = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
+
+    // ========== SEGURIDAD ==========
+    function checkPermission(requiredRoles = []) {
+      if (!currentUser) {
+        alert('Sesión no iniciada.');
+        handleLogout();
+        return false;
+      }
+      if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+        alert('⛔ No tenés permisos para realizar esta acción.');
+        return false;
+      }
+      return true;
+    }
 
     // ========== ESTADO GLOBAL ==========
     let currentUser = null;
@@ -4274,7 +4306,6 @@
 
       // Mostrar pestaña de calificaciones solo si es curso "Certificado" o carrera profesional
       const nombreCurso = curso?.nombre || '';
-      // Regex flexible para: certificado/a, profesional, profesion, carrera
       const esCertificado = /certificad|profesion|carrera/i.test(nombreCurso);
       const tabCalif = document.getElementById('tab-calificaciones');
 
@@ -4308,12 +4339,16 @@
     async function renderTeorico() {
       const { data } = await db.from('contenido_teorico').select('*').eq('curso_id', currentCursoId).order('orden');
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const hoy = new Date().toISOString().split('T')[0];
       
-      // Actualizar cache para URLs pesadas
       data?.forEach(item => itemCache[item.id] = item);
 
-      document.getElementById('lista-teorico').innerHTML = data?.length ? data.map(c => {
-        // Icono según tipo
+      const dataVisible = isDocenteOrAdmin ? data : data?.filter(c => {
+        if (!c.disponible_desde) return true;
+        return c.disponible_desde <= hoy;
+      });
+
+      document.getElementById('lista-teorico').innerHTML = dataVisible?.length ? dataVisible.map(c => {
         let icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>';
         let btnTexto = 'Descargar';
         if (c.tipo === 'Video') {
@@ -4326,11 +4361,19 @@
           icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
           btnTexto = 'Ver';
         }
+        let visibilidadBadge = '';
+        if (isDocenteOrAdmin && c.disponible_desde) {
+          if (c.disponible_desde > hoy) {
+            visibilidadBadge = `<span style="font-size:10px; background:#FFF3E0; color:#E65100; padding:2px 8px; border-radius:10px; margin-left:8px; white-space:nowrap;">🕐 Visible desde ${new Date(c.disponible_desde + 'T00:00:00').toLocaleDateString('es-AR')}</span>`;
+          } else {
+            visibilidadBadge = `<span style="font-size:10px; background:#E8F5E9; color:#2E7D32; padding:2px 8px; border-radius:10px; margin-left:8px; white-space:nowrap;">✅ Visible</span>`;
+          }
+        }
         const clickAbrir = c.url ? `onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')" style="cursor:pointer;"` : '';
         return `
-        <div class="contenido-item">
+        <div class="contenido-item" ${isDocenteOrAdmin && c.disponible_desde && c.disponible_desde > hoy ? 'style="opacity:0.65;border-left:3px solid #FF9800;"' : ''}>
           <div class="contenido-icon" ${clickAbrir}>${icono}</div>
-          <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
+          <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}${visibilidadBadge}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
           ${c.url ? `<button class="btn-download" onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
           ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
         </div>
@@ -4911,30 +4954,54 @@
 
     // ========== TRABAJOS Y EVALUACIONES ==========
     async function renderTrabajos() {
-      // Optimizamos traído de datos: NO cargamos el blob pesado hasta que se pida
-      const { data } = await db.from('trabajos_practicos').select('id, titulo, consigna, fecha_limite, archivo_url').eq('curso_id', currentCursoId).order('fecha_limite');
+      const { data } = await db.from('trabajos_practicos').select('id, titulo, consigna, fecha_limite, archivo_url, disponible_desde, disponible_hasta').eq('curso_id', currentCursoId).order('fecha_limite');
       const now = new Date();
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
       
-      // Guardar en cache para evitar Base64 en el HTML del DOM
       data?.forEach(t => itemCache[t.id] = t);
 
+      const dataVisible = isDocenteOrAdmin ? data : data?.filter(tp => {
+        const tpDesde = tp.disponible_desde ? new Date(tp.disponible_desde.replace('+00:00', '-03:00')) : null;
+        const tpHasta = tp.disponible_hasta ? new Date(tp.disponible_hasta.replace('+00:00', '-03:00')) : null;
+        if (tpDesde && now < tpDesde) return false;
+        if (tpHasta && now > tpHasta) return false;
+        return true;
+      });
+
       let entregasMap = {};
-      if (!isDocenteOrAdmin && data?.length) {
+      if (!isDocenteOrAdmin && dataVisible?.length) {
         try {
-          const tpIds = data.map(t => t.id);
+          const tpIds = dataVisible.map(t => t.id);
           const { data: misEntregas } = await db.from('entregas_tp').select('id, trabajo_id, fecha_entrega, nota, feedback').in('trabajo_id', tpIds).eq('alumno_id', currentUser.id);
           misEntregas?.forEach(e => entregasMap[e.trabajo_id] = e);
         } catch(e) { console.error('Error cargando mis entregas', e); }
       }
 
-      document.getElementById('lista-trabajos').innerHTML = data?.length ? data.map(tp => {
+      document.getElementById('lista-trabajos').innerHTML = dataVisible?.length ? dataVisible.map(tp => {
         const limite = new Date(tp.fecha_limite.replace('+00:00', '-03:00'));
         const vencido = now > limite;
         const miEntrega = entregasMap[tp.id];
+
+        let visiBadge = '';
+        if (isDocenteOrAdmin) {
+          const tpDesde = tp.disponible_desde ? new Date(tp.disponible_desde.replace('+00:00', '-03:00')) : null;
+          const tpHasta = tp.disponible_hasta ? new Date(tp.disponible_hasta.replace('+00:00', '-03:00')) : null;
+          if (tpDesde && now < tpDesde) {
+            visiBadge = `<span style="font-size:10px; background:#FFF3E0; color:#E65100; padding:2px 8px; border-radius:10px; margin-left:8px;">🕐 Visible desde ${tpDesde.toLocaleString('es-AR')}</span>`;
+          } else if (tpHasta && now > tpHasta) {
+            visiBadge = `<span style="font-size:10px; background:#FFEBEE; color:#C62828; padding:2px 8px; border-radius:10px; margin-left:8px;">🔒 Oculto (finalizó)</span>`;
+          } else if (tpDesde || tpHasta) {
+            visiBadge = `<span style="font-size:10px; background:#E8F5E9; color:#2E7D32; padding:2px 8px; border-radius:10px; margin-left:8px;">✅ Visible</span>`;
+          }
+        }
+
+        const tpDesdeCheck = tp.disponible_desde ? new Date(tp.disponible_desde.replace('+00:00', '-03:00')) : null;
+        const tpHastaCheck = tp.disponible_hasta ? new Date(tp.disponible_hasta.replace('+00:00', '-03:00')) : null;
+        const noVisibleAun = isDocenteOrAdmin && ((tpDesdeCheck && now < tpDesdeCheck) || (tpHastaCheck && now > tpHastaCheck));
+
         return `
-          <div class="trabajo-card">
-            <div class="trabajo-header"><h4>${tp.titulo}</h4><span class="estado-badge ${vencido ? 'cerrado' : 'abierto'}">${vencido ? 'Cerrado' : 'Abierto'}</span></div>
+          <div class="trabajo-card" ${noVisibleAun ? 'style="opacity:0.6; border-left:3px solid #FF9800;"' : ''}>
+            <div class="trabajo-header"><h4>${tp.titulo}${visiBadge}</h4><span class="estado-badge ${vencido ? 'cerrado' : 'abierto'}">${vencido ? 'Cerrado' : 'Abierto'}</span></div>
             <div class="trabajo-body">
               <p>${tp.consigna || ''}</p>
               ${tp.archivo_url ? `<button onclick="verArchivoDesdeCache('trabajos_practicos', '${tp.id}', 'Consigna_${tp.titulo.replace(/ /g, '_')}')" class="btn btn-secondary btn-small" style="margin-top:10px; margin-bottom:10px; display:inline-block; border: 1px solid var(--violeta); color: var(--violeta); background: white;">👁️ Ver Material Adjunto</button>` : ''}
@@ -4975,7 +5042,14 @@
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
       const now = new Date();
 
-      document.getElementById('lista-evaluaciones').innerHTML = data?.length ? data.map(e => {
+      // Filtrar para alumnos: ocultar evaluaciones que aún no están disponibles
+      const dataVisible = isDocenteOrAdmin ? data : data?.filter(e => {
+        const desde = e.disponible_desde ? new Date(e.disponible_desde.replace('+00:00', '-03:00')) : null;
+        if (desde && now < desde) return false; // Ocultar totalmente si aún no abrió
+        return true;
+      });
+
+      document.getElementById('lista-evaluaciones').innerHTML = dataVisible?.length ? dataVisible.map(e => {
         const tipo = e.tipo || 'presencial';
         const icono = tipoIconos[tipo] || '📝';
         const nombreTipo = tipoNombres[tipo] || 'Presencial';
@@ -4995,11 +5069,14 @@
           statusLabel = 'Finalizado';
         }
 
+        // Para docentes: estilo atenuado si no es visible para alumnos
+        const noVisibleAun = isDocenteOrAdmin && status === 'proximamente';
+
         return `
-          <div class="evaluacion-card ${status}">
+          <div class="evaluacion-card ${status}" ${noVisibleAun ? 'style="opacity:0.6; border-left:3px solid #FF9800;"' : ''}>
             <div style="display:flex; justify-content:space-between; align-items:start;">
               <span class="evaluacion-tipo ${tipo}">${icono} ${nombreTipo}</span>
-              <span class="estado-badge ${status}">${statusLabel}</span>
+              <span class="estado-badge ${status}">${statusLabel}${noVisibleAun ? ' (oculta p/ alumnos)' : ''}</span>
             </div>
             <h3>${e.titulo}</h3>
             <p>${e.descripcion || ''}</p>
@@ -5015,7 +5092,6 @@
               </div>
             ` : `
               ${status === 'abierto' && tieneLink ? `<a href="${e.link_externo}" target="_blank" class="btn btn-primary btn-eval-link">🚀 Ir a la evaluación</a>` : ''}
-              ${status === 'proximamente' ? `<div class="empty-state-mini" style="margin-top:10px;padding:10px;">La evaluación se habilitará el ${desde.toLocaleString('es-AR')}</div>` : ''}
               ${status === 'cerrado' ? `<div class="empty-state-mini" style="margin-top:10px;padding:10px;">Esta evaluación ya finalizó</div>` : ''}
             `}
           </div>
@@ -6421,6 +6497,7 @@
     function cambiarCodigo() { show('modal-codigo'); document.getElementById('nuevo-codigo').value = ''; }
 
     async function guardarCodigo() {
+      if (!checkPermission(['admin'])) return;
       const nuevo = document.getElementById('nuevo-codigo').value.trim().toUpperCase();
       if (!nuevo || nuevo.length < 6) { alert('El código debe tener al menos 6 caracteres'); return; }
       await db.from('configuracion').update({ valor: nuevo }).eq('clave', 'codigo_docente');
@@ -6440,6 +6517,7 @@
       show('modal-banner');
     }
     async function guardarBanner() {
+      if (!checkPermission(['admin'])) return;
       const titulo = document.getElementById('edit-titulo').value;
       const subtitulo = document.getElementById('edit-subtitulo').value;
       const chef = document.getElementById('edit-chef').value;
@@ -6453,15 +6531,17 @@
       alert('✅ Actualizado');
     }
 
-    function openContenidoModal() { document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; show('modal-contenido'); }
+    function openContenidoModal() { document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; document.getElementById('cont-disponible-desde').value = ''; show('modal-contenido'); }
     async function guardarContenido() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const titulo = document.getElementById('cont-titulo').value;
       const tipo = document.getElementById('cont-tipo').value;
       const archivo = document.getElementById('cont-archivo').value;
       const url = document.getElementById('cont-url').value;
+      const disponibleDesde = document.getElementById('cont-disponible-desde').value || null;
       if (!titulo) return alert('Ingresá un título');
       if (!url) return alert('Ingresá el link del contenido');
-      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, titulo, tipo, archivo_nombre: archivo, url: url });
+      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde });
       closeModal('contenido'); await renderTeorico(); alert('✅ Agregado');
     }
 
@@ -6476,6 +6556,7 @@
       show('modal-receta'); 
     }
     async function guardarReceta() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const nombre = document.getElementById('rec-nombre').value;
       if (!nombre) return alert('Ingresá un nombre para la receta');
       
@@ -6522,21 +6603,25 @@
 
     function openImagenModal(id) { currentRecetaId = id; document.getElementById('img-url').value = ''; show('modal-imagen'); }
     async function guardarImagen() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const url = document.getElementById('img-url').value;
       await db.from('recetas').update({ imagen_url: url }).eq('id', currentRecetaId);
       closeModal('imagen'); await renderRecetas(); alert('✅ Imagen actualizada');
     }
 
-    function openTrabajoModal() { ['tp-titulo', 'tp-consigna', 'tp-archivo-file', 'tp-archivo-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('tp-archivo-actual').textContent = 'Los alumnos descargan este archivo, lo resuelven y entregan de vuelta.'; document.getElementById('tp-fecha').value = ''; show('modal-trabajo'); }
+    function openTrabajoModal() { ['tp-titulo', 'tp-consigna', 'tp-archivo-file', 'tp-archivo-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('tp-archivo-actual').textContent = 'Los alumnos descargan este archivo, lo resuelven y entregan de vuelta.'; document.getElementById('tp-fecha').value = ''; document.getElementById('tp-disponible-desde').value = ''; document.getElementById('tp-disponible-hasta').value = ''; show('modal-trabajo'); }
     async function guardarTrabajo() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const titulo = document.getElementById('tp-titulo').value;
       const consigna = document.getElementById('tp-consigna').value;
       const fecha = document.getElementById('tp-fecha').value;
       const archivoUrl = document.getElementById('tp-archivo-url')?.value;
+      const dispDesde = document.getElementById('tp-disponible-desde').value || null;
+      const dispHasta = document.getElementById('tp-disponible-hasta').value || null;
       
       if (!titulo || !fecha) return alert('Completá título y fecha');
       
-      const payload = { curso_id: currentCursoId, titulo, consigna, fecha_limite: fecha };
+      const payload = { curso_id: currentCursoId, titulo, consigna, fecha_limite: fecha, disponible_desde: dispDesde, disponible_hasta: dispHasta };
       if (archivoUrl) payload.archivo_url = archivoUrl;
 
       const { data: newTrabajo, error } = await db.from('trabajos_practicos').insert(payload).select().single();
@@ -6567,6 +6652,7 @@
     }
 
     async function guardarEvaluacion() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const titulo = document.getElementById('eval-titulo').value;
       const desde = document.getElementById('eval-desde').value;
       const hasta = document.getElementById('eval-hasta').value;
@@ -6594,6 +6680,7 @@
 
     function openEventoModal() { ['ev-nombre', 'ev-desc', 'ev-tareas'].forEach(id => document.getElementById(id).value = ''); document.getElementById('ev-fecha').value = ''; document.getElementById('ev-cupo').value = '10'; show('modal-evento'); }
     async function guardarEvento() {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       const nombre = document.getElementById('ev-nombre').value;
       const fecha = document.getElementById('ev-fecha').value;
       const cupo = parseInt(document.getElementById('ev-cupo').value);
@@ -6618,6 +6705,7 @@
 
     function openCursoModal() { ['curso-nombre', 'curso-descripcion', 'curso-duracion', 'curso-emoji', 'curso-codigo'].forEach(id => document.getElementById(id).value = ''); show('modal-curso'); }
     async function guardarCurso() {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       const nombre = document.getElementById('curso-nombre').value;
       const descripcion = document.getElementById('curso-descripcion').value;
       const duracion = document.getElementById('curso-duracion').value;
@@ -6663,6 +6751,7 @@
     }
 
     async function guardarEditCurso() {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       const nombre = document.getElementById('edit-curso-nombre').value;
       const descripcion = document.getElementById('edit-curso-descripcion').value;
       const emoji = document.getElementById('edit-curso-emoji').value || '📚';
@@ -6717,6 +6806,7 @@
 
     // ========== EVALUACIONES ==========
     async function eliminarEvaluacion(id) {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       if (!confirm('¿Estás segura de eliminar esta evaluación?')) return;
       try {
         const { error } = await db.from('evaluaciones').delete().eq('id', id);
@@ -6741,6 +6831,7 @@
     }
 
     async function guardarEditEvaluacion() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const titulo = document.getElementById('edit-eval-titulo').value;
       const tipo = document.getElementById('edit-eval-tipo').value;
       const desde = document.getElementById('edit-eval-desde').value;
@@ -6762,6 +6853,7 @@
 
     // ========== EVENTOS ==========
     async function eliminarEvento(id) {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       if (!confirm('¿Estás segura de eliminar este evento?')) return;
       try {
         await db.from('tareas_evento').delete().eq('evento_id', id);
@@ -6790,6 +6882,7 @@
     }
 
     async function guardarEditEvento() {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       const nombre = document.getElementById('edit-ev-nombre').value;
       const fecha = document.getElementById('edit-ev-fecha').value;
       const cupo = parseInt(document.getElementById('edit-ev-cupo').value);
@@ -6811,6 +6904,7 @@
 
     // ========== GESTIÓN DE USUARIOS (ADMIN) ==========
     async function toggleBloqueoUsuario(id, estadoActual) {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       const accion = estadoActual ? 'desbloquear' : 'bloquear';
       if (!confirm(`¿Estás segura de ${accion} a este usuario?`)) return;
       
@@ -6826,6 +6920,7 @@
     }
 
     async function eliminarUsuario(id, nombre) {
+      if (!checkPermission(['admin', 'administrativo'])) return;
       if (!confirm(`⚠️ ¿ELIMINAR DEFINITIVAMENTE a ${nombre}?\nEsta acción no se puede deshacer y borrará su historial.`)) return;
       if (!confirm(`Esta es la ÚLTIMA CONFIRMACIÓN. ¿Borrar a ${nombre}?`)) return;
 
@@ -6920,6 +7015,7 @@
     }
 
     async function guardarCorreccionTP() {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const nota = document.getElementById('corregir-nota').value;
       const feedback = document.getElementById('corregir-feedback').value;
 
@@ -6991,6 +7087,7 @@
     }
 
     async function eliminarTrabajo(id) {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       if (!confirm('¿Estás segura de eliminar este trabajo práctico?')) return;
       try {
         const { error } = await db.from('trabajos_practicos').delete().eq('id', id);
@@ -7009,6 +7106,8 @@
       document.getElementById('edit-tp-titulo').value = tp.titulo || '';
       document.getElementById('edit-tp-consigna').value = tp.consigna || '';
       document.getElementById('edit-tp-fecha').value = tp.fecha_limite ? tp.fecha_limite.slice(0, 16) : '';
+      document.getElementById('edit-tp-disponible-desde').value = tp.disponible_desde ? tp.disponible_desde.slice(0, 16) : '';
+      document.getElementById('edit-tp-disponible-hasta').value = tp.disponible_hasta ? tp.disponible_hasta.slice(0, 16) : '';
       document.getElementById('edit-tp-archivo-file').value = '';
       document.getElementById('edit-tp-archivo-url').value = '';
       
@@ -7030,10 +7129,12 @@
       const consigna = document.getElementById('edit-tp-consigna').value;
       const fecha = document.getElementById('edit-tp-fecha').value;
       const archivoUrl = document.getElementById('edit-tp-archivo-url').value;
+      const dispDesde = document.getElementById('edit-tp-disponible-desde').value || null;
+      const dispHasta = document.getElementById('edit-tp-disponible-hasta').value || null;
       
       if (!titulo || !fecha) return alert('Completá título y fecha');
 
-      const payload = { titulo, consigna, fecha_limite: fecha };
+      const payload = { titulo, consigna, fecha_limite: fecha, disponible_desde: dispDesde, disponible_hasta: dispHasta };
       if (archivoUrl) payload.archivo_url = archivoUrl;
 
       await db.from('trabajos_practicos').update(payload).eq('id', currentTrabajoId);
@@ -7045,6 +7146,7 @@
 
     // ========== DOCENTES ==========
     async function eliminarDocente(id) {
+      if (!checkPermission(['admin'])) return;
       if (!confirm('⚠️ ¿Eliminar este docente? Se eliminarán también sus cursos asociados.')) return;
       try {
         await db.from('cursos').update({ creador_id: null }).eq('creador_id', id);
@@ -7069,6 +7171,7 @@
     }
 
     async function guardarEditDocente() {
+      if (!checkPermission(['admin'])) return;
       const nombre = document.getElementById('edit-doc-nombre').value;
       const apellido = document.getElementById('edit-doc-apellido').value;
       const email = document.getElementById('edit-doc-email').value;
