@@ -3219,7 +3219,7 @@
 
       <!-- RESULT SCREEN / ACTA -->
       <div id="examen-result-screen" class="hidden" style="padding:60px; text-align:center; background:white; position:relative;">
-        <h2 style="color:var(--violeta); margin-bottom:0;">ACTA DE RENDIMIENTO ACADÉMICO</h2>
+        <h2 style="color:var(--violeta); margin-bottom:0;">CONSTANCIA DE APROBACIÓN</h2>
         <p style="font-weight:bold; letter-spacing:1px;" id="examen-result-modulo"></p>
         <p style="margin-top:30px;">Se certifica que el alumno/a:</p>
         <h2 id="examen-final-name" style="text-decoration: underline; font-size:2em; margin: 10px 0;"></h2>
@@ -3237,8 +3237,7 @@
         </div>
         
         <div style="font-size: 0.75em; color: #777; margin-top: 40px; font-style: italic; border-top: 1px solid #eee; padding-top: 15px;">
-            * Este documento acredita exclusivamente el rendimiento en la evaluación teórica interna.<br>
-            No reemplaza certificaciones oficiales externas salvo indicación contraria.
+            * Este documento certifica la aprobación del módulo de Buenas Prácticas de Manufactura (BPM).
         </div>
         
         <p id="examen-validation-code" style="font-size:0.7em; color:#999; margin-top:20px;"></p>
@@ -7347,7 +7346,7 @@
         { q: "Las tablas de picar de diferentes colores sirven para:", a: ["Que la cocina sea más alegre", "Evitar la contaminación cruzada entre alimentos", "Diferenciar los turnos de trabajo"], c: 1 },
         { q: "Los huevos deben almacenarse:", a: ["En la puerta de la heladera sin lavar", "En recipiente plástico limpio y tapado en estante de la heladera, sin lavar", "Al aire libre sobre la mesada"], c: 1 },
         { q: "¿Cuál es la forma correcta de higienizar vegetales?", a: ["Solo con un chorro de agua", "Lavado con agua potable y luego inmersión en agua con gotitas de lavandina apta", "Frotar con un trapo seco"], c: 1 },
-        { q: "El principal síntoma de una intoxicación por estafilococo suele ser:", a: ["Manchas en la piel", "Vómitos intensos y dolor abdominal poco tiempo después de comer", "Dolor de espalda"], c: 1 },
+
         { q: "¿Cuáles son los factores que favorecen el crecimiento de microorganismos?", a: ["Oxígeno, agua, temperatura y PH neutro", "PH ácido, sequedad y frío extremo", "PH alcalino, anaerobiosis y poca agua"], c: 0 },
         { q: "¿Quién es el principal responsable de la transmisión de ETAS?", a: ["Los animales", "Los alimentos", "El manipulador"], c: 2 },
         { q: "¿Quiénes deben tener carnet de manipulador de alimentos?", a: ["Solo los cocineros", "Los camareros y cocineros", "Todos los que estén en contacto con alimentos, ya sea para producir o transportar"], c: 2 },
@@ -7475,18 +7474,27 @@
       if (finalNameEle) finalNameEle.innerText = fullName.toUpperCase();
       
       const resModuloEle = document.getElementById('examen-result-modulo');
-      if (resModuloEle) resModuloEle.innerText = "EXAMEN PARA CERTIFICACIÓN DEL MÓDULO BPM";
+      if (resModuloEle) resModuloEle.innerText = "MÓDULO DE BUENAS PRÁCTICAS DE MANUFACTURA (BPM)";
       
       const scoreCircle = document.getElementById('examen-score-circle');
+      const aprobado = p >= 70;
       if (scoreCircle) {
+        scoreCircle.style.display = 'flex';
         scoreCircle.innerText = p + "%";
-        scoreCircle.style.borderColor = p >= 70 ? "var(--verde)" : "var(--rojo)";
+        scoreCircle.style.borderColor = aprobado ? "var(--verde)" : "var(--rojo)";
       }
       
       const st = document.getElementById('examen-res-status');
       if (st) {
-        st.innerText = p >= 70 ? "MÓDULO APROBADO" : "REPROBADO";
-        st.style.color = p >= 70 ? "var(--verde)" : "var(--rojo)";
+        st.innerText = aprobado ? "APROBÓ EL MÓDULO DE BPM" : "REPROBADO";
+        st.style.color = aprobado ? "var(--verde)" : "var(--rojo)";
+        st.style.fontSize = aprobado ? "1.5em" : "1em";
+      }
+
+      // Cambiar título según resultado
+      const headerTitle = document.querySelector('#examen-result-screen > h2:first-child');
+      if (headerTitle) {
+        headerTitle.innerText = aprobado ? "CONSTANCIA DE APROBACIÓN" : "RESULTADO DE EVALUACIÓN";
       }
 
       const valCode = document.getElementById('examen-validation-code');
