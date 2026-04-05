@@ -5794,8 +5794,8 @@
             .date-box td, .date-box th { border: 1px solid #000; padding: 2px 6px; }
             
             .info-block { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
-            .info-line { display:flex; white-space:nowrap; font-size:10px; }
-            .dotted-fill { flex-grow:1; border-bottom:1px dotted #000; margin-left:5px; padding:0 5px; outline:none; vertical-align:bottom; min-height:1.2em; }
+            .info-line { display:flex; align-items:flex-end; white-space:nowrap; font-size:10px; }
+            .dotted-fill { flex-grow:1; border-bottom:1px dotted #000; margin-left:5px; padding:0 5px 0 5px; outline:none; line-height:1.2; }
             .editable-cell { outline:none; cursor:text; }
             .editable-cell:focus, .dotted-fill:focus { background-color: #f0f8ff; }
             
@@ -5819,7 +5819,7 @@
             .footer-block { display:flex; flex-direction:column; gap:10px; margin-top:10px; font-size:10px; }
             
             .flex-row { display:flex; justify-content:space-between; width:100%; }
-            .flex-row > div { display:flex; flex-grow:1; }
+            .flex-row > div { display:flex; flex-grow:1; align-items:flex-end; }
             
             @media print {
               body { margin:0; padding:0; max-width:none; }
