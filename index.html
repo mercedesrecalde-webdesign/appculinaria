@@ -5777,8 +5777,9 @@
               font-family: 'Roboto', Arial, sans-serif; 
               font-size: 10px; 
               color: #000; 
-              margin: 0;
-              padding: 0;
+              margin: 0 auto;
+              padding: 10px;
+              max-width: 210mm;
               width: 100%;
               text-transform: uppercase; 
               line-height: 1.2; 
@@ -5805,7 +5806,7 @@
             
             .col-nro { width:5%; }
             .col-dni { width:12%; }
-            .col-nombres { text-align:left !important; padding-left:8px !important; }
+            .col-nombres { text-align:left !important; padding-left:8px !important; font-size:11px !important; }
             .col-calif { width:20%; }
             .col-bol { width:12%; }
             
@@ -5819,6 +5820,10 @@
             
             .flex-row { display:flex; justify-content:space-between; width:100%; }
             .flex-row > div { display:flex; flex-grow:1; }
+            
+            @media print {
+              body { margin:0; padding:0; max-width:none; }
+            }
           </style>
         </head>
         <body>
@@ -5913,7 +5918,7 @@
             </div>
             <div class="flex-row" style="margin-top:4px;">
               <div style="flex-grow:0; width:300px;">
-                <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div>, de <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div> de 2.......-
+                <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div>, de <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div> de <div class="dotted-fill" contenteditable="true" style="width:60px; display:inline-block;"></div>
               </div>
               <div>Total de Alumnos:<div class="dotted-fill" contenteditable="true"></div></div>
             </div>
