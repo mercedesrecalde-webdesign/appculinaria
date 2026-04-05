@@ -2911,8 +2911,8 @@
             placeholder="Ej: Manual completo 2025"></div>
         <div class="input-group"><label>🔗 Link (Google Drive, YouTube, Sheets, etc.)</label><input type="url" id="cont-url"
             placeholder="https://drive.google.com/... o https://youtube.com/..."></div>
-        <div class="input-group"><label>📅 Disponible para alumnos desde (opcional)</label><input type="date" id="cont-disponible-desde">
-          <p style="font-size:11px;color:var(--gris);margin-top:4px;">Si no se define, será visible inmediatamente. Si se define, será visible desde esa fecha en adelante (sin fecha de fin).</p>
+        <div class="input-group"><label>📅 Disponible para alumnos desde (opcional)</label><input type="datetime-local" id="cont-disponible-desde">
+          <p style="font-size:11px;color:var(--gris);margin-top:4px;">Si no se define, será visible inmediatamente. Si se define, será visible desde esa fecha y hora en adelante.</p>
         </div>
       </div>
       <div class="modal-actions"><button class="btn btn-secondary"
@@ -4429,13 +4429,14 @@
     async function renderTeorico() {
       const { data } = await db.from('contenido_teorico').select('*').eq('curso_id', currentCursoId).order('orden');
       const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
-      const hoy = new Date().toISOString().split('T')[0];
+      const ahora = new Date();
       
       data?.forEach(item => itemCache[item.id] = item);
 
       const dataVisible = isDocenteOrAdmin ? data : data?.filter(c => {
         if (!c.disponible_desde) return true;
-        return c.disponible_desde <= hoy;
+        const desde = new Date(c.disponible_desde);
+        return ahora >= desde;
       });
 
       document.getElementById('lista-teorico').innerHTML = dataVisible?.length ? dataVisible.map(c => {
@@ -4453,15 +4454,16 @@
         }
         let visibilidadBadge = '';
         if (isDocenteOrAdmin && c.disponible_desde) {
-          if (c.disponible_desde > hoy) {
-            visibilidadBadge = `<span style="font-size:10px; background:#FFF3E0; color:#E65100; padding:2px 8px; border-radius:10px; margin-left:8px; white-space:nowrap;">🕐 Visible desde ${new Date(c.disponible_desde + 'T00:00:00').toLocaleDateString('es-AR')}</span>`;
+          const desde = new Date(c.disponible_desde);
+          if (ahora < desde) {
+            visibilidadBadge = `<span style="font-size:10px; background:#FFF3E0; color:#E65100; padding:2px 8px; border-radius:10px; margin-left:8px; white-space:nowrap;">🕐 Visible desde ${desde.toLocaleString('es-AR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</span>`;
           } else {
             visibilidadBadge = `<span style="font-size:10px; background:#E8F5E9; color:#2E7D32; padding:2px 8px; border-radius:10px; margin-left:8px; white-space:nowrap;">✅ Visible</span>`;
           }
         }
         const clickAbrir = c.url ? `onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')" style="cursor:pointer;"` : '';
         return `
-        <div class="contenido-item" ${isDocenteOrAdmin && c.disponible_desde && c.disponible_desde > hoy ? 'style="opacity:0.65;border-left:3px solid #FF9800;"' : ''}>
+        <div class="contenido-item" ${isDocenteOrAdmin && c.disponible_desde && ahora < new Date(c.disponible_desde) ? 'style="opacity:0.65;border-left:3px solid #FF9800;"' : ''}>
           <div class="contenido-icon" ${clickAbrir}>${icono}</div>
           <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}${visibilidadBadge}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
           ${c.url ? `<button class="btn-download" onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
@@ -5765,46 +5767,46 @@
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
             
             * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family: 'Roboto', Arial, sans-serif; font-size:11px; color:#000; padding:20px; text-transform:uppercase; line-height: 1.4; }
+            body { font-family: 'Roboto', Arial, sans-serif; font-size:9px; color:#000; padding:10px 12px; text-transform:uppercase; line-height: 1.15; }
             
             /* Header */
-            .main-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
-            .header-titles h1 { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
-            .header-titles .subtitle { font-size: 11px; margin-bottom: 3px; font-weight: 500; }
+            .main-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+            .header-titles h1 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+            .header-titles .subtitle { font-size: 9px; margin-bottom: 1px; font-weight: 500; }
             
-            .date-box { border-collapse: collapse; text-align: center; font-size: 10px; margin-top:2px; }
-            .date-box td, .date-box th { border: 1px solid #000; padding: 2px 5px; }
+            .date-box { border-collapse: collapse; text-align: center; font-size: 8px; margin-top:1px; }
+            .date-box td, .date-box th { border: 1px solid #000; padding: 1px 4px; }
             
-            .info-block { display:flex; flex-direction:column; gap:4px; margin-bottom:15px; }
-            .info-line { display:flex; white-space:nowrap; }
-            .dotted-fill { flex-grow:1; border-bottom:1px dotted #000; margin-left:5px; position:relative; top:-4px; padding:0 5px; outline:none; }
+            .info-block { display:flex; flex-direction:column; gap:2px; margin-bottom:6px; }
+            .info-line { display:flex; white-space:nowrap; font-size:9px; }
+            .dotted-fill { flex-grow:1; border-bottom:1px dotted #000; margin-left:5px; position:relative; top:-3px; padding:0 5px; outline:none; }
             .editable-cell { outline:none; cursor:text; }
             .editable-cell:focus, .dotted-fill:focus { background-color: #f0f8ff; }
             
             /* Table */
-            table.main-table { width:100%; border-collapse:collapse; margin-bottom:15px; }
-            table.main-table th, table.main-table td { border:1px solid #000; padding:4px; text-align:center; }
-            table.main-table th { background-color:#fefefe; font-weight:500; font-size:10px; }
+            table.main-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
+            table.main-table th, table.main-table td { border:1px solid #000; padding:1px 3px; text-align:center; font-size:8px; }
+            table.main-table th { background-color:#fefefe; font-weight:500; font-size:8px; }
             
             .col-nro { width:4%; }
             .col-dni { width:12%; }
-            .col-nombres { text-align:left !important; padding-left:10px !important; }
+            .col-nombres { text-align:left !important; padding-left:6px !important; }
             .col-calif { width:22%; }
             .col-bol { width:12%; }
             
             /* Sub-headers for merged columns */
-            th.sub-header { font-size:9px; padding:2px; }
+            th.sub-header { font-size:7px; padding:1px; }
             td.sub-cell { width: 33.33%; border-left: 1px solid #000; }
             td.sub-cell:first-child { border-left: none; }
             
             /* Footer */
-            .footer-block { display:flex; flex-direction:column; gap:12px; margin-top:5px; font-size:12px; }
+            .footer-block { display:flex; flex-direction:column; gap:4px; margin-top:4px; font-size:9px; }
             
             .flex-row { display:flex; justify-content:space-between; width:100%; }
             .flex-row > div { display:flex; flex-grow:1; }
             
             @media print {
-              body { padding:0; margin: 1cm; }
+              body { padding:0; margin: 5mm 8mm; }
               @page { margin: 0; size: A4 portrait; }
             }
           </style>
@@ -5814,7 +5816,7 @@
             <div class="header-titles">
               <h1>ACTA VOLANTE DE EXAMEN</h1>
               <div class="subtitle">CFP "Prof. Carmen G. L de Barreiro Aguirre" DIEGEP Nº 6601</div>
-              <div style="font-size:10px; margin-left: 100px;">Establecimiento</div>
+              <div style="font-size:8px; margin-left: 100px;">Establecimiento</div>
             </div>
             
             <table class="date-box">
@@ -5846,7 +5848,7 @@
           <table class="main-table">
             <thead>
               <tr>
-                <th rowspan="2" class="col-nro" style="font-size:8px;">Número<br>de Orden</th>
+                <th rowspan="2" class="col-nro" style="font-size:7px;">Número<br>de Orden</th>
                 <th rowspan="2" class="col-dni">D.N.I. Nº</th>
                 <th rowspan="2" class="col-nombres">APELLIDOS Y NOMBRE/S</th>
                 <th colspan="3" class="col-calif">CALIFICACIONES</th>
@@ -5899,21 +5901,20 @@
               <div>Vocal: <div class="dotted-fill" contenteditable="true"></div></div>
               <div>Vocal: <div class="dotted-fill" contenteditable="true"></div></div>
             </div>
-            <br>
-            <div class="flex-row" style="margin-top:10px;">
+            <div class="flex-row" style="margin-top:4px;">
               <div style="flex-grow:0; width:300px;">
                 <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div>, de <div class="dotted-fill" contenteditable="true" style="width:100px; display:inline-block;"></div> de 2.......-
               </div>
               <div>Total de Alumnos:<div class="dotted-fill" contenteditable="true"></div></div>
             </div>
             
-            <div class="flex-row" style="margin-top:10px;">
+            <div class="flex-row" style="margin-top:4px;">
               <div>Aprobados: <div class="dotted-fill" contenteditable="true"></div></div>
               <div>Desaprobados: <div class="dotted-fill" contenteditable="true"></div></div>
               <div>Ausentes: <div class="dotted-fill" contenteditable="true"></div></div>
             </div>
             
-            <div class="flex-row" style="margin-top:10px;">
+            <div class="flex-row" style="margin-top:4px;">
               <div>Lugar y Fecha: <div class="dotted-fill" contenteditable="true"></div></div>
             </div>
           </div>
