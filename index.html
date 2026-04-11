@@ -4591,7 +4591,10 @@
           <div class="contenido-icon" ${clickAbrir}>${icono}</div>
           <div class="contenido-info" ${clickAbrir}><h4>${c.titulo}${visibilidadBadge}</h4><p>${c.tipo}${c.archivo_nombre ? ' • ' + c.archivo_nombre : ''}</p></div>
           ${c.url ? `<button class="btn-download" onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
-          ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
+          ${isDocenteOrAdmin ? `
+            <button class="btn btn-small btn-secondary" onclick="openContenidoModal('${c.id}')" style="margin-left:8px; padding: 2px 6px;">✏️</button>
+            <button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>
+          ` : ''}
         </div>
       `}).join('');
     }
@@ -6824,20 +6827,44 @@
       alert('✅ Actualizado');
     }
 
-    function openContenidoModal() { document.getElementById('cont-carpeta').value = ''; document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; document.getElementById('cont-disponible-desde').value = ''; 
+    let editandoContenidoId = null;
+
+    function openContenidoModal(id = null) { 
+      editandoContenidoId = id;
+      document.getElementById('cont-carpeta').value = ''; 
+      document.getElementById('cont-titulo').value = ''; 
+      document.getElementById('cont-archivo').value = ''; 
+      document.getElementById('cont-url').value = ''; 
+      document.getElementById('cont-disponible-desde').value = ''; 
+      document.getElementById('cont-tipo').value = 'Documento';
+
+      if (id && itemCache[id]) {
+        const c = itemCache[id];
+        document.getElementById('cont-carpeta').value = c.carpeta || ''; 
+        document.getElementById('cont-titulo').value = c.titulo || ''; 
+        document.getElementById('cont-tipo').value = c.tipo || 'Documento'; 
+        document.getElementById('cont-archivo').value = c.archivo_nombre || ''; 
+        document.getElementById('cont-url').value = c.url || ''; 
+        if (c.disponible_desde) {
+          const d = new Date(c.disponible_desde);
+          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          document.getElementById('cont-disponible-desde').value = d.toISOString().slice(0,16);
+        }
+      }
     
-    // Poblar datalist con carpetas existentes
-    const datalist = document.getElementById('carpetas-existentes');
-    if (datalist) {
-      const carpetasSet = new Set();
-      Object.values(itemCache).forEach(item => {
-        if (item.carpeta) carpetasSet.add(item.carpeta);
-      });
-      datalist.innerHTML = Array.from(carpetasSet).map(c => `<option value="${c}">`).join('');
+      // Poblar datalist con carpetas existentes
+      const datalist = document.getElementById('carpetas-existentes');
+      if (datalist) {
+        const carpetasSet = new Set();
+        Object.values(itemCache).forEach(item => {
+          if (item.carpeta) carpetasSet.add(item.carpeta);
+        });
+        datalist.innerHTML = Array.from(carpetasSet).map(c => `<option value="${c}">`).join('');
+      }
+      
+      show('modal-contenido'); 
     }
     
-    show('modal-contenido'); 
-    }
     async function guardarContenido() {
       if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
       const carpeta = document.getElementById('cont-carpeta').value.trim();
@@ -6847,10 +6874,19 @@
       const url = document.getElementById('cont-url').value;
       const rawDisp = document.getElementById('cont-disponible-desde').value;
       const disponibleDesde = rawDisp ? new Date(rawDisp).toISOString() : null;
+      
       if (!titulo) return alert('Ingresá un título');
       if (!url) return alert('Ingresá el link del contenido');
-      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, carpeta: carpeta || null, carpeta_visible: true, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde });
-      closeModal('contenido'); await renderTeorico(); alert('✅ Agregado');
+      
+      if (editandoContenidoId) {
+        await db.from('contenido_teorico').update({ carpeta: carpeta || null, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde }).eq('id', editandoContenidoId);
+      } else {
+        await db.from('contenido_teorico').insert({ curso_id: currentCursoId, carpeta: carpeta || null, carpeta_visible: true, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde });
+      }
+      
+      closeModal('contenido'); 
+      await renderTeorico(); 
+      alert(editandoContenidoId ? '✅ Actualizado' : '✅ Agregado');
     }
 
     function openRecetaModal() { 
