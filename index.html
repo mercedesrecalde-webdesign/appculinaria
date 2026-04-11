@@ -1497,6 +1497,56 @@
       box-shadow: 0 6px 20px rgba(0, 172, 193, 0.4);
       transform: scale(1.02);
     }
+    
+    /* Carpetas para Teórico */
+    .carpeta-wrapper {
+      margin-bottom: 20px;
+      border: 1px solid var(--gris-claro);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--blanco);
+      box-shadow: var(--sombra);
+    }
+
+    .carpeta-header {
+      background: #F8F9FA;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid #EAEAEA;
+    }
+
+    .carpeta-header:hover {
+      background: #F0F2F5;
+    }
+
+    .carpeta-header h3 {
+      margin: 0;
+      font-size: 16px;
+      color: var(--gris-oscuro);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .carpeta-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .carpeta-content {
+      padding: 15px;
+      background: #FAFAFA;
+    }
+    
+    .carpeta-icon {
+      font-size: 20px;
+      color: var(--turquesa);
+    }
 
     /* Calificaciones */
     .calificaciones-container {
@@ -2899,6 +2949,11 @@
     <div class="modal-content" onclick="event.stopPropagation()">
       <h3>Agregar Contenido Teórico</h3>
       <div class="login-form">
+        <div class="input-group">
+          <label>Carpeta (Tema)</label>
+          <input type="text" id="cont-carpeta" placeholder="Ej: BPM, Masas Quebradas, Pastelería Clásica... (opcional)" list="carpetas-existentes">
+          <datalist id="carpetas-existentes"></datalist>
+        </div>
         <div class="input-group"><label>Título</label><input type="text" id="cont-titulo"></div>
         <div class="input-group"><label>Tipo</label><select id="cont-tipo">
             <option>Documento</option>
@@ -4433,13 +4488,82 @@
       
       data?.forEach(item => itemCache[item.id] = item);
 
+      // Filtrar contenido visible (si tiene fecha desde y es alumno)
       const dataVisible = isDocenteOrAdmin ? data : data?.filter(c => {
         if (!c.disponible_desde) return true;
         const desde = new Date(c.disponible_desde);
         return ahora >= desde;
       });
+      
+      // Agrupar por carpeta
+      const carpetas = {};
+      const sinCarpeta = [];
+      
+      dataVisible?.forEach(c => {
+        if (c.carpeta) {
+          if (!carpetas[c.carpeta]) carpetas[c.carpeta] = { items: [], visible: true };
+          carpetas[c.carpeta].items.push(c);
+          if (typeof c.carpeta_visible !== 'undefined') carpetas[c.carpeta].visible = c.carpeta_visible;
+        } else {
+          sinCarpeta.push(c);
+        }
+      });
 
-      document.getElementById('lista-teorico').innerHTML = dataVisible?.length ? dataVisible.map(c => {
+      let html = '';
+      
+      // Renderizar Carpetas
+      if (Object.keys(carpetas).length > 0) {
+        for (const [nombreCarpeta, carpeta] of Object.entries(carpetas)) {
+          // Si es alumno y la carpeta no es visible, saltarla
+          if (!isDocenteOrAdmin && !carpeta.visible) continue;
+          
+          let btnVisibilidad = '';
+          if (isDocenteOrAdmin) {
+            btnVisibilidad = `
+              <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); toggleCarpetaVisibilidad('${nombreCarpeta}', ${!carpeta.visible})" title="${carpeta.visible ? 'Ocultar carpeta' : 'Mostrar carpeta'}" style="padding: 4px 8px;">
+                ${carpeta.visible ? '👁️' : '🚫'}
+              </button>
+            `;
+          }
+          
+          const opacidad = (!carpeta.visible && isDocenteOrAdmin) ? "opacity: 0.6;" : "";
+          
+          html += `
+            <div class="carpeta-wrapper" style="${opacidad}">
+              <div class="carpeta-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                <h3><span class="carpeta-icon">📁</span> ${nombreCarpeta}</h3>
+                <div class="carpeta-header-actions">
+                  ${btnVisibilidad}
+                  <span style="font-size: 12px; color: var(--gris);">${carpeta.items.length} ítem(s)</span>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 8px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+              </div>
+              <div class="carpeta-content hidden">
+          `;
+          
+          html += generarHtmlItems(carpeta.items, isDocenteOrAdmin, ahora);
+          
+          html += `
+              </div>
+            </div>
+          `;
+        }
+      }
+      
+      // Renderizar Ítems sin carpeta
+      if (sinCarpeta.length > 0) {
+        html += generarHtmlItems(sinCarpeta, isDocenteOrAdmin, ahora);
+      }
+      
+      if (!html) {
+          html = '<div class="empty-state"><p>No hay contenido todavía</p></div>';
+      }
+
+      document.getElementById('lista-teorico').innerHTML = html;
+    }
+    
+    function generarHtmlItems(items, isDocenteOrAdmin, ahora) {
+      return items.map(c => {
         let icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>';
         let btnTexto = 'Descargar';
         if (c.tipo === 'Video') {
@@ -4469,7 +4593,23 @@
           ${c.url ? `<button class="btn-download" onclick="verArchivoDesdeCache('contenido_teorico', '${c.id}', '${c.titulo.replace(/'/g, "\\'")}')">${btnTexto}</button>` : '<button class="btn-download" disabled style="opacity:0.5">Sin link</button>'}
           ${isDocenteOrAdmin ? `<button class="btn btn-small btn-danger" onclick="eliminarContenido('${c.id}')" style="margin-left:8px;">✕</button>` : ''}
         </div>
-      `}).join('') : '<div class="empty-state"><p>No hay contenido todavía</p></div>';
+      `}).join('');
+    }
+    
+    async function toggleCarpetaVisibilidad(nombreCarpeta, nuevoEstado) {
+      if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
+      if (!confirm(`¿${nuevoEstado ? 'Hacer visible' : 'Ocultar'} la carpeta "${nombreCarpeta}" para los alumnos?`)) return;
+      
+      try {
+        const btn = event.currentTarget || false;
+        if(btn) btn.innerHTML = '⏳';
+        
+        await db.from('contenido_teorico').update({ carpeta_visible: nuevoEstado }).eq('curso_id', currentCursoId).eq('carpeta', nombreCarpeta);
+        await renderTeorico();
+      } catch (e) {
+        console.error('Error actualizando visibilidad de la carpeta:', e);
+        alert('Error al actualizar: ' + e.message);
+      }
     }
 
     async function eliminarContenido(id) {
@@ -5717,26 +5857,72 @@
       }
     }
 
+    let currentActaContext = null;
+
     async function prepararActaVolante(cursoId, cursoNombre, inscripciones) {
-      const moduloNombre = prompt('Para imprimir el Acta Volante con calificaciones, ingresá el nombre exacto del módulo (ej: BPM, Masas Quebradas). Si dejás vacío, se imprimirá la planilla en blanco para completar a mano:');
+      // Guardar contexto para usarlo luego
+      currentActaContext = { tipo: 'modulo', cursoId, cursoNombre, inscripciones };
       
-      if (moduloNombre === null) return; // Cancelled
+      const alumnoIds = inscripciones.map(i => i.alumno_id);
+      const { data: usuariosDB } = await db.from('usuarios').select('id, nombre, apellido, dni').in('id', alumnoIds);
       
-      let notasMap = {};
-      if (moduloNombre.trim() !== '') {
-        const { data: notasAsociadas } = await db.from('calificaciones_modulares')
-          .select('usuario_id, nota_examen, promedio')
-          .eq('curso_id', cursoId)
-          .eq('modulo_nombre', moduloNombre.trim());
-          
-        if (notasAsociadas) {
-          notasAsociadas.forEach(n => {
-            notasMap[n.usuario_id] = n;
-          });
+      if (!usuariosDB || !usuariosDB.length) return alert('No hay alumnos para imprimir.');
+
+      usuariosDB.sort((a, b) => {
+        const apA = (a.apellido || '').toLowerCase();
+        const apB = (b.apellido || '').toLowerCase();
+        if (apA !== apB) return apA.localeCompare(apB);
+        return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+      });
+
+      const lista = document.getElementById('lista-alumnos-acta');
+      lista.innerHTML = usuariosDB.map(u => `
+        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;" onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background='transparent'">
+          <input type="checkbox" class="acta-checkbox" value="${u.id}" checked>
+          <span>${u.apellido || ''}, ${u.nombre || ''} <span style="color:var(--gris);font-size:11px;">(${u.dni || '-'})</span></span>
+        </label>
+      `).join('');
+      
+      document.getElementById('check-todos-alumnos').checked = true;
+      show('modal-seleccion-alumnos');
+    }
+    
+    function toggleTodosAlumnos(checked) {
+      document.querySelectorAll('.acta-checkbox').forEach(cb => cb.checked = checked);
+    }
+    
+    async function confirmarGenerarActaVolante() {
+      const seleccionados = Array.from(document.querySelectorAll('.acta-checkbox:checked')).map(cb => cb.value);
+      if (seleccionados.length === 0) return alert('Seleccioná al menos un alumno para el acta.');
+      
+      closeModal('seleccion-alumnos');
+      
+      if (currentActaContext.tipo === 'modulo') {
+        const moduloNombre = prompt('Para imprimir el Acta Volante con calificaciones, ingresá el nombre exacto del módulo (ej: BPM, Masas Quebradas). Si dejás vacío, se imprimirá la planilla en blanco para completar a mano:');
+        if (moduloNombre === null) return; // Cancelled
+        
+        let notasMap = {};
+        if (moduloNombre.trim() !== '') {
+          const { data: notasAsociadas } = await db.from('calificaciones_modulares')
+            .select('usuario_id, nota_examen, promedio')
+            .eq('curso_id', currentActaContext.cursoId)
+            .eq('modulo_nombre', moduloNombre.trim());
+            
+          if (notasAsociadas) {
+            notasAsociadas.forEach(n => {
+              notasMap[n.usuario_id] = n;
+            });
+          }
         }
+        
+        // Filtrar inscripciones según selección
+        const inscripcionesFiltradas = currentActaContext.inscripciones.filter(i => seleccionados.includes(i.alumno_id.toString()));
+        imprimirActaVolante(currentActaContext.cursoNombre, inscripcionesFiltradas, moduloNombre.trim(), notasMap);
+        
+      } else if (currentActaContext.tipo === 'evaluacion') {
+        const { evalId, evalTitulo } = currentActaContext;
+        generarActaVolanteFase2(evalId, evalTitulo, seleccionados);
       }
-      
-      imprimirActaVolante(cursoNombre, inscripciones, moduloNombre.trim(), notasMap);
     }
 
     async function imprimirActaVolante(cursoNombre, inscripciones, moduloNombre, notasMap) {
@@ -5935,8 +6121,8 @@
           </div>
           
           <script>
-            window.onload = () => window.print();
-          <\/script>
+            // Actas pueden ser impresas usando el botón manual. Se elimina el auto-impresión window.onload = () => window.print();
+          </script>
         </body>
         </html>
       `);
@@ -6638,17 +6824,32 @@
       alert('✅ Actualizado');
     }
 
-    function openContenidoModal() { document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; document.getElementById('cont-disponible-desde').value = ''; show('modal-contenido'); }
+    function openContenidoModal() { document.getElementById('cont-carpeta').value = ''; document.getElementById('cont-titulo').value = ''; document.getElementById('cont-archivo').value = ''; document.getElementById('cont-url').value = ''; document.getElementById('cont-disponible-desde').value = ''; 
+    
+    // Poblar datalist con carpetas existentes
+    const datalist = document.getElementById('carpetas-existentes');
+    if (datalist) {
+      const carpetasSet = new Set();
+      Object.values(itemCache).forEach(item => {
+        if (item.carpeta) carpetasSet.add(item.carpeta);
+      });
+      datalist.innerHTML = Array.from(carpetasSet).map(c => `<option value="${c}">`).join('');
+    }
+    
+    show('modal-contenido'); 
+    }
     async function guardarContenido() {
       if (!checkPermission(['admin', 'docente', 'administrativo'])) return;
-      const titulo = document.getElementById('cont-titulo').value;
+      const carpeta = document.getElementById('cont-carpeta').value.trim();
+      const titulo = document.getElementById('cont-titulo').value.trim();
       const tipo = document.getElementById('cont-tipo').value;
       const archivo = document.getElementById('cont-archivo').value;
       const url = document.getElementById('cont-url').value;
-      const disponibleDesde = document.getElementById('cont-disponible-desde').value || null;
+      const rawDisp = document.getElementById('cont-disponible-desde').value;
+      const disponibleDesde = rawDisp ? new Date(rawDisp).toISOString() : null;
       if (!titulo) return alert('Ingresá un título');
       if (!url) return alert('Ingresá el link del contenido');
-      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde });
+      await db.from('contenido_teorico').insert({ curso_id: currentCursoId, carpeta: carpeta || null, carpeta_visible: true, titulo, tipo, archivo_nombre: archivo, url: url, disponible_desde: disponibleDesde });
       closeModal('contenido'); await renderTeorico(); alert('✅ Agregado');
     }
 
@@ -7521,15 +7722,41 @@
     }
 
     async function generarActaVolante(evalId, evalTitulo) {
+      // 1. Obtener alumnos inscriptos
+      const { data: inscripciones, error: errI } = await db.from('inscripciones')
+          .select('alumno_id, usuarios!inscripciones_alumno_id_fkey(id, nombre, apellido, dni)')
+          .eq('curso_id', currentCursoId);
+        
+      if (errI) return alert('Error al obtener inscripciones');
+      
+      const usuariosDB = inscripciones.map(i => i.usuarios);
+      if (!usuariosDB || !usuariosDB.length) return alert('No hay alumnos para imprimir.');
+
+      usuariosDB.sort((a, b) => {
+        const apA = (a.apellido || '').toLowerCase();
+        const apB = (b.apellido || '').toLowerCase();
+        if (apA !== apB) return apA.localeCompare(apB);
+        return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
+      });
+
+      const lista = document.getElementById('lista-alumnos-acta');
+      lista.innerHTML = usuariosDB.map(u => `
+        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;" onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background='transparent'">
+          <input type="checkbox" class="acta-checkbox" value="${u.id}" checked>
+          <span>${u.apellido || ''}, ${u.nombre || ''} <span style="color:var(--gris);font-size:11px;">(${u.dni || '-'})</span></span>
+        </label>
+      `).join('');
+      
+      document.getElementById('check-todos-alumnos').checked = true;
+      currentActaContext = { tipo: 'evaluacion', evalId, evalTitulo, inscripciones };
+      show('modal-seleccion-alumnos');
+    }
+      
+    async function generarActaVolanteFase2(evalId, evalTitulo, seleccionadosIds) {
       try {
         const loadingToast = alert('Generando acta... Por favor esperá.');
         
-        // 1. Obtener alumnos inscriptos
-        const { data: inscripciones, error: errI } = await db.from('inscripciones')
-          .select('alumno_id, usuarios!inscripciones_alumno_id_fkey(nombre, apellido)')
-          .eq('curso_id', currentCursoId);
-        
-        if (errI) throw errI;
+        const inscripciones = currentActaContext.inscripciones.filter(i => seleccionadosIds.includes(i.alumno_id.toString()));
         
         // 2. Obtener entregas del examen
         const { data: entregas, error: errE } = await db.from('entregas_evaluacion')
