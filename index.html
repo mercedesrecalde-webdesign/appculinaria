@@ -3530,6 +3530,32 @@
     </div>
   </div>
 
+  <!-- MODAL SELECCION ALUMNOS PARA ACTA VOLANTE -->
+  <div id="modal-seleccion-alumnos" class="modal-overlay hidden" onclick="closeModal('seleccion-alumnos')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3>📄 Selección para Acta Volante</h3>
+        <button class="btn btn-secondary btn-small" onclick="closeModal('seleccion-alumnos')" style="padding:4px 8px; border:none; background:transparent; font-size:18px; cursor:pointer;">❌</button>
+      </div>
+      <p style="font-size:14px; margin-bottom:15px; color:var(--gris);">
+        Confirmá qué alumnos formarán parte del acta volante a imprimir.
+      </p>
+      
+      <label style="display:inline-flex; align-items:center; gap:8px; font-weight:bold; margin-bottom:10px; cursor:pointer;">
+        <input type="checkbox" id="check-todos-alumnos" checked onchange="document.querySelectorAll('.acta-checkbox').forEach(cb => cb.checked = this.checked)">
+        Seleccionar Todos
+      </label>
+
+      <div id="lista-alumnos-acta" style="max-height: 250px; overflow-y: auto; border:1px solid #ddd; padding:10px; border-radius:5px; background:#fafafa; margin-bottom:15px;">
+        <!-- Lista de checkboxes inyectada por JS -->
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('seleccion-alumnos')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarActaVolante()">Continuar y Generar</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ========== SUPABASE CONFIG ==========
@@ -7894,6 +7920,21 @@
       } catch (e) {
         console.error("Error generando acta:", e);
         alert("Error al generar el acta: " + e.message);
+      }
+    }
+
+    function confirmarActaVolante() {
+      const checkboxes = document.querySelectorAll('.acta-checkbox:checked');
+      const seleccionadosIds = Array.from(checkboxes).map(cb => cb.value);
+      
+      if (seleccionadosIds.length === 0) {
+        return alert('Debe seleccionar al menos un alumno para imprimir el acta.');
+      }
+      
+      closeModal('seleccion-alumnos');
+      
+      if (currentActaContext && currentActaContext.tipo === 'evaluacion') {
+        generarActaVolanteFase2(currentActaContext.evalId, currentActaContext.evalTitulo, seleccionadosIds);
       }
     }
   </script>
