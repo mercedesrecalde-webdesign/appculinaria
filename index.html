@@ -3552,7 +3552,7 @@
       
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('seleccion-alumnos')">Cancelar</button>
-        <button class="btn btn-primary" onclick="confirmarActaVolante()">Continuar y Generar</button>
+        <button class="btn btn-primary" onclick="confirmarGenerarActaVolante()">Continuar y Generar</button>
       </div>
     </div>
   </div>
@@ -7920,21 +7920,6 @@
       } catch (e) {
         console.error("Error generando acta:", e);
         alert("Error al generar el acta: " + e.message);
-      }
-    }
-
-    function confirmarActaVolante() {
-      const checkboxes = document.querySelectorAll('.acta-checkbox:checked');
-      const seleccionadosIds = Array.from(checkboxes).map(cb => cb.value);
-      
-      if (seleccionadosIds.length === 0) {
-        return alert('Debe seleccionar al menos un alumno para imprimir el acta.');
-      }
-      
-      closeModal('seleccion-alumnos');
-      
-      if (currentActaContext && currentActaContext.tipo === 'evaluacion') {
-        generarActaVolanteFase2(currentActaContext.evalId, currentActaContext.evalTitulo, seleccionadosIds);
       }
     }
   </script>
