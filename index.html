@@ -3915,7 +3915,7 @@
       const docenteSelect = document.getElementById('msg-destino-docente');
       const alumnoSelect = document.getElementById('msg-destino-alumno');
 
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
 
       // Cargar opciones básicas
       tipoSelect.innerHTML = `
@@ -4509,7 +4509,7 @@
 
     async function renderTeorico() {
       const { data } = await db.from('contenido_teorico').select('*').eq('curso_id', currentCursoId).order('orden');
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       const ahora = new Date();
       
       data?.forEach(item => itemCache[item.id] = item);
@@ -4650,7 +4650,7 @@
 
     async function renderRecetas() {
       const { data } = await db.from('recetas').select('*').eq('curso_id', currentCursoId).order('created_at', { ascending: false });
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       document.getElementById('lista-recetas').innerHTML = data?.length ? data.map(r => `
         <div class="receta-card" onclick="verReceta(${r.id})" style="cursor:pointer;">
           <div class="receta-imagen" style="${r.imagen_url ? 'background-image:url(' + r.imagen_url + ');background-size:cover;' : ''}">
@@ -5217,7 +5217,7 @@
     async function renderTrabajos() {
       const { data } = await db.from('trabajos_practicos').select('id, titulo, consigna, fecha_limite, archivo_url, disponible_desde, disponible_hasta').eq('curso_id', currentCursoId).order('fecha_limite');
       const now = new Date();
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       
       data?.forEach(t => itemCache[t.id] = t);
 
@@ -5300,7 +5300,7 @@
       const { data } = await db.from('evaluaciones').select('*').eq('curso_id', currentCursoId).order('fecha');
       const tipoIconos = { interno: '🎓', google: '📋', educaplay: '🎮', kahoot: '🟣', quizizz: '🟡', otro: '🔗', presencial: '📝' };
       const tipoNombres = { interno: 'Examen Interno', google: 'Google Forms', educaplay: 'Educaplay', kahoot: 'Kahoot', quizizz: 'Quizizz', otro: 'Link externo', presencial: 'Presencial' };
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       const now = new Date();
 
       // No ocultamos nada, solo manejamos los estados (Abierto/Cerrado)
@@ -5367,7 +5367,7 @@
       container.innerHTML = '<div class="empty-state"><span class="spinner"></span><p>Cargando calificaciones...</p></div>';
 
       try {
-        const isDocente = userRole === 'docente' || userRole === 'admin';
+        const isDocente = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
 
         if (isDocente) {
           // Cargar planilla de notas de TP para este curso
@@ -5585,7 +5585,7 @@
     function renderEventoCard(e) {
       const tareas = e.tareas_evento || [];
       const total = tareas.reduce((s, t) => s + (t.inscripciones_evento?.length || 0), 0);
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       return `
         <div class="evento-card">
           <div class="evento-header"><h3>${e.nombre}</h3><p class="evento-fecha">📅 ${e.fecha}</p></div>
@@ -5656,7 +5656,7 @@
            const esCarrera = selectedCurso.tipo_curso === 'carrera' || 
                              /certificad|profesion|carrera/i.test(selectedCurso.nombre || '');
            
-           if (esCarrera && (userRole === 'docente' || userRole === 'admin')) {
+           if (esCarrera && (userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo')) {
               btnPlanilla.style.display = 'block';
               btnPlanilla.onclick = () => openPlanillaModal(cursoId, selectedCurso.nombre);
               btnActa.style.display = 'block';
@@ -6357,7 +6357,7 @@
       // Wait fully for the modal to open and load its dropdowns before setting values
       await openNuevoMensajeModal();
       
-      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin';
+      const isDocenteOrAdmin = userRole === 'docente' || userRole === 'admin' || userRole === 'administrativo';
       
       if (isDocenteOrAdmin) {
         document.getElementById('msg-destino-tipo').value = 'individual';
