@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examen · Tecnología de los Alimentos · Rainero Culinaria</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FAF7F2;
+    --warm-white: #FFFDF9;
+    --gold: #C4973A;
+    --gold-light: #E8C97A;
+    --gold-pale: #F5EDD6;
+    --brown: #3D2B1F;
+    --brown-mid: #6B4C3B;
+    --brown-light: #A07858;
+    --green: #2D6A4F;
+    --green-light: #D8EFE6;
+    --red-soft: #8B2E2E;
+    --red-light: #F5DEDE;
+    --text: #2C1F14;
+    --text-mid: #6B4C3B;
+    --text-light: #A07858;
+    --border: rgba(196,151,58,0.25);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--brown);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-logo {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold-light);
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--brown-light);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--brown);
+    padding: 3rem 2rem 4rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 120%, rgba(196,151,58,0.12) 0%, transparent 70%);
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(26px, 5vw, 38px);
+    color: var(--warm-white);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .hero-title em { color: var(--gold-light); font-style: italic; }
+  .hero-desc {
+    font-size: 14px;
+    color: var(--brown-light);
+    max-width: 480px;
+    margin: 0 auto 2rem;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .hero-chips {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: rgba(196,151,58,0.15);
+    border: 0.5px solid rgba(196,151,58,0.4);
+    color: var(--gold-light);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── PROGRESS ── */
+  .progress-wrap {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 2rem;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .progress-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    white-space: nowrap;
+  }
+  .progress-bar-outer {
+    flex: 1;
+    height: 4px;
+    background: #E8D8C0;
+    border-radius: 999px;
+  }
+  .progress-bar-inner {
+    height: 4px;
+    background: var(--gold);
+    border-radius: 999px;
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+  }
+  .progress-score {
+    font-size: 12px;
+    color: var(--text-light);
+    white-space: nowrap;
+  }
+
+  /* ── MAIN ── */
+  .main { max-width: 700px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  /* ── CARD ── */
+  .q-card {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    animation: slideIn 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .q-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .q-num {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-light);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .q-tag {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .tag-azucar    { background: #FDF0D8; color: #7A4A10; }
+  .tag-grasa     { background: #FBEAE5; color: #7A2E1A; }
+  .tag-proteina  { background: #EEF0FD; color: #3A3490; }
+  .tag-agua      { background: #E4F1FB; color: #1A4A7A; }
+  .tag-fermentacion { background: var(--green-light); color: var(--green); }
+
+  .q-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+    font-weight: 400;
+  }
+
+  /* ── OPTIONS ── */
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt-btn {
+    width: 100%;
+    background: var(--cream);
+    border: 1px solid #DFD0BA;
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14px;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.18s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    line-height: 1.45;
+  }
+  .opt-btn::before {
+    content: attr(data-letter);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 50%;
+    background: #E8D8C0;
+    color: var(--brown-mid);
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 1px;
+    transition: all 0.18s ease;
+  }
+  .opt-btn:hover:not(:disabled) {
+    background: var(--gold-pale);
+    border-color: var(--gold);
+    transform: translateX(3px);
+  }
+  .opt-btn:hover:not(:disabled)::before {
+    background: var(--gold);
+    color: white;
+  }
+  .opt-btn.correct {
+    background: var(--green-light);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .opt-btn.correct::before { background: var(--green); color: white; }
+  .opt-btn.wrong {
+    background: var(--red-light);
+    border-color: var(--red-soft);
+    color: var(--red-soft);
+  }
+  .opt-btn.wrong::before { background: var(--red-soft); color: white; }
+  .opt-btn:disabled { cursor: default; transform: none; }
+
+  /* ── FEEDBACK ── */
+  .feedback-box {
+    margin-top: 1.25rem;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .feedback-box.ok {
+    background: var(--green-light);
+    border-left: 3px solid var(--green);
+    color: #1A4D35;
+    display: block;
+  }
+  .feedback-box.fail {
+    background: var(--red-light);
+    border-left: 3px solid var(--red-soft);
+    color: #5C1E1E;
+    display: block;
+  }
+  .feedback-icon { font-size: 15px; margin-right: 6px; }
+
+  /* ── NAV BTN ── */
+  .q-footer { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+  .btn-next {
+    background: var(--brown);
+    color: var(--gold-light);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.2s ease;
+  }
+  .btn-next:hover:not(:disabled) { background: var(--brown-mid); }
+  .btn-next:disabled { opacity: 0.3; cursor: default; }
+
+  /* ── RESULTADO ── */
+  #result-view { display: none; }
+  .result-header {
+    text-align: center;
+    padding: 3rem 1.5rem 2rem;
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 2rem;
+  }
+  .result-icon { font-size: 48px; margin-bottom: 12px; }
+  .result-score {
+    font-family: 'Playfair Display', serif;
+    font-size: 56px;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .result-label {
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 6px;
+  }
+  .result-msg {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: var(--text);
+    font-style: italic;
+  }
+
+  /* ── GRID RESUMEN ── */
+  .resumen-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 12px;
+    margin-top: 2rem;
+  }
+  .resumen-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 6px;
+    margin-bottom: 2.5rem;
+  }
+  .res-cell {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .res-cell.ok { background: var(--green-light); color: var(--green); }
+  .res-cell.fail { background: var(--red-light); color: var(--red-soft); }
+  .res-cell-n { font-size: 14px; }
+
+  .result-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-retry {
+    background: transparent;
+    border: 1px solid #DFD0BA;
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-mid);
+    transition: background 0.2s;
+  }
+  .btn-retry:hover { background: var(--gold-pale); }
+  .btn-cert {
+    background: var(--gold);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  .btn-cert:hover { background: #B8882E; }
+
+  /* ── CERTIFICADO ── */
+  #cert-view { display: none; }
+  .cert-wrap {
+    background: var(--warm-white);
+    border: 2px solid var(--gold);
+    border-radius: 20px;
+    padding: 3.5rem 3rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cert-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 0.5px solid rgba(196,151,58,0.3);
+    border-radius: 14px;
+    pointer-events: none;
+  }
+  .cert-corners {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  .cert-corners::before, .cert-corners::after {
+    content: '✦';
+    position: absolute;
+    color: var(--gold);
+    font-size: 20px;
+    opacity: 0.5;
+  }
+  .cert-corners::before { top: 20px; left: 24px; }
+  .cert-corners::after  { bottom: 20px; right: 24px; }
+  .cert-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 2rem;
+  }
+  .cert-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 8px;
+  }
+  .cert-headline {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 5vw, 32px);
+    color: var(--text);
+    line-height: 1.25;
+    margin-bottom: 2rem;
+  }
+  .cert-divider {
+    width: 80px;
+    height: 1px;
+    background: var(--gold);
+    margin: 0 auto 2rem;
+    position: relative;
+  }
+  .cert-divider::before {
+    content: '✦';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--warm-white);
+    padding: 0 8px;
+    color: var(--gold);
+    font-size: 12px;
+  }
+  .cert-body {
+    font-size: 14px;
+    color: var(--text-mid);
+    line-height: 1.8;
+    margin-bottom: 2rem;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .cert-name-field {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(20px, 4vw, 28px);
+    color: var(--gold);
+    font-style: italic;
+    border: none;
+    border-bottom: 1px solid var(--gold);
+    background: transparent;
+    text-align: center;
+    width: 100%;
+    max-width: 360px;
+    outline: none;
+    padding: 4px 8px;
+    margin-bottom: 2rem;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .cert-name-field::placeholder { color: #C4973A88; }
+  .cert-score-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gold-pale);
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    padding: 6px 20px;
+    margin-bottom: 2.5rem;
+    font-size: 13px;
+    color: var(--brown-mid);
+    font-weight: 500;
+  }
+  .cert-modules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+  }
+  .cert-chip {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 0.5px solid var(--gold);
+    color: var(--brown-mid);
+    background: var(--gold-pale);
+  }
+  .cert-date {
+    font-size: 12px;
+    color: var(--text-light);
+    letter-spacing: 0.08em;
+    margin-bottom: 2.5rem;
+  }
+  .cert-seal {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    background: var(--brown);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .cert-seal::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+  }
+  .cert-seal-inner {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold-light);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .cert-print-btn {
+    margin-top: 2rem;
+    background: var(--brown);
+    color: var(--gold-light);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: background 0.2s;
+  }
+  .cert-print-btn:hover { background: var(--brown-mid); }
+
+  .cert-back {
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid #DFD0BA;
+    border-radius: 8px;
+    padding: 9px 24px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-mid);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    transition: background 0.2s;
+  }
+  .cert-back:hover { background: var(--gold-pale); }
+
+  @media print {
+    .header, .progress-wrap, #quiz-view, #result-view, .cert-print-btn, .cert-back, .result-actions { display: none !important; }
+    #cert-view { display: block !important; }
+    .cert-wrap { border-color: #C4973A; }
+    body { background: white; }
+  }
+
+  @media (max-width: 480px) {
+    .resumen-grid { grid-template-columns: repeat(5,1fr); }
+    .cert-wrap { padding: 2rem 1.5rem; }
+    .cert-footer-sigs { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="header-logo">Rainero Culinaria</div>
+    <div class="header-sub">Instituto de Alta Gastronomía</div>
+  </div>
+  <div style="font-size:12px;color:var(--brown-light);text-align:right;">
+    <div style="font-weight:500;color:var(--gold-light);">Módulo · TDA</div>
+    <div>Examen Autocorregible</div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero" id="hero-section">
+  <div class="hero-eyebrow">Evaluación de Módulo</div>
+  <h1 class="hero-title">Tecnología de los <em>Alimentos</em></h1>
+  <p class="hero-desc">20 preguntas basadas en los contenidos del módulo. Al aprobar con el 60% o más (12 respuestas correctas) obtendrás tu certificado de aprobación.</p>
+  <div class="hero-chips">
+    <span class="chip">Azúcares</span>
+    <span class="chip">Grasas</span>
+    <span class="chip">Proteínas</span>
+    <span class="chip">Agua</span>
+    <span class="chip">Fermentación</span>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-wrap" id="progress-wrap" style="display:none;">
+  <span class="progress-label" id="prog-label">Pregunta 1 de 20</span>
+  <div class="progress-bar-outer"><div class="progress-bar-inner" id="prog-bar" style="width:5%"></div></div>
+  <span class="progress-score" id="prog-score">0 ✓</span>
+</div>
+
+<div class="main">
+
+  <!-- QUIZ -->
+  <div id="quiz-view" style="display:none;">
+    <div class="q-card" id="q-card">
+      <div class="q-meta">
+        <span class="q-num" id="q-num">Pregunta 1 de 20</span>
+        <span class="q-tag" id="q-tag"></span>
+      </div>
+      <div class="q-text" id="q-text"></div>
+      <div class="options" id="opts"></div>
+      <div class="feedback-box" id="fb"></div>
+      <div class="q-footer">
+        <button class="btn-next" id="btn-next" disabled>Siguiente →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- START -->
+  <div id="start-view" style="text-align:center;padding:3rem 0;">
+    <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--text);margin-bottom:8px;">¿Listo para comenzar?</div>
+    <p style="font-size:14px;color:var(--text-light);margin-bottom:2rem;">Leé cada pregunta con atención. El feedback se muestra al instante.</p>
+    <button class="btn-next" style="padding:14px 40px;font-size:15px;" id="btn-start">Comenzar examen →</button>
+  </div>
+
+  <!-- RESULTADO -->
+  <div id="result-view">
+    <div class="result-header">
+      <div class="result-icon" id="r-icon"></div>
+      <div class="result-score" id="r-score"></div>
+      <div class="result-label" id="r-label"></div>
+      <div class="result-msg" id="r-msg"></div>
+    </div>
+    <div class="resumen-title">Detalle por pregunta</div>
+    <div class="resumen-grid" id="resumen-grid"></div>
+    <div class="result-actions">
+      <button class="btn-retry" onclick="reiniciar()">Volver a intentar</button>
+      <button class="btn-cert" id="btn-cert" onclick="mostrarCert()" style="display:none;">Ver certificado →</button>
+    </div>
+  </div>
+
+  <!-- CERTIFICADO -->
+  <div id="cert-view">
+    <div class="cert-wrap">
+      <div class="cert-corners"></div>
+      <div class="cert-logo">✦ Rainero Culinaria ✦</div>
+      <div class="cert-title">Certifica que</div>
+      <input class="cert-name-field" id="cert-name" type="text" placeholder="Ingresá tu nombre completo" maxlength="60" />
+      <div class="cert-headline">ha aprobado el Módulo de<br>Tecnología de los Alimentos</div>
+      <div class="cert-divider"></div>
+      <div class="cert-body">
+        Habiendo demostrado conocimientos en los ejes temáticos de Azúcares, Lípidos, Proteínas, Agua y Procesos de Fermentación, correspondientes al programa de formación en Gastronomía Científica.
+      </div>
+      <div class="cert-score-display">
+        <span>Calificación:</span>
+        <strong id="cert-score-val"></strong>
+        <span>·</span>
+        <strong id="cert-pct-val"></strong>
+      </div>
+      <div class="cert-modules">
+        <span class="cert-chip">Azúcares & Maillard</span>
+        <span class="cert-chip">Lípidos & Grasas</span>
+        <span class="cert-chip">Proteínas & Huevo</span>
+        <span class="cert-chip">Agua & Actividad aw</span>
+        <span class="cert-chip">Fermentación & Panificación</span>
+      </div>
+      <div class="cert-date" id="cert-date"></div>
+      <div class="cert-seal">
+        <div class="cert-seal-inner">Aprobado<br>✦<br>TDA</div>
+      </div>
+
+    </div>
+    <button class="cert-print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+    <button class="cert-back" onclick="volverResultado()">← Volver al resultado</button>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const TAG = { azucar:"Azúcares", grasa:"Grasas", proteina:"Proteínas", agua:"Agua", fermentacion:"Fermentación" };
+
+const preguntas = [
+  { tema:"azucar", texto:"¿A qué temperatura comienza aproximadamente la reacción de Maillard?", opts:["A partir de los 80°C","A partir de los 100°C (ebullición del agua)","A partir de los 140°C","A partir de los 200°C"], c:2, fb:"Las reacciones de Maillard comienzan en general por encima de los 140°C. Por eso, en un estofado cocido a fuego lento (bajo 100°C), la carne nunca desarrolla el sabor y color típicos del dorado." },
+  { tema:"azucar", texto:"¿Cuál es la principal diferencia entre la reacción de Maillard y la caramelización?", opts:["La Maillard ocurre solo con fructosa; la caramelización solo con glucosa","La Maillard requiere azúcar reductor + aminoácido; la caramelización ocurre solo con azúcares sin proteínas","La caramelización necesita proteínas; la Maillard no","Son el mismo proceso a distintas temperaturas"], c:1, fb:"La Maillard (1912) es la reacción entre azúcares reductores y aminoácidos. La caramelización es la degradación térmica pura de los azúcares en ausencia de aminas, requiriendo temperaturas más altas (>150°C glucosa, >160°C sacarosa)." },
+  { tema:"azucar", texto:"¿Cuál de estos azúcares tiene el mayor poder edulcorante relativo (sacarosa = 100)?", opts:["Lactosa (40)","Maltosa (50)","Glucosa (70)","Fructosa (120-170)"], c:3, fb:"La escala del poder edulcorante: Lactosa 40 · Maltosa 50 · Glucosa 70 · Sacarosa 100 · Fructosa 120-170. La fructosa es el más dulce y su dulzor varía según temperatura y pH." },
+  { tema:"azucar", texto:"¿Por qué la sacarosa NO participa directamente en la reacción de Maillard?", opts:["Porque tiene muy baja solubilidad en agua","Porque es un disacárido no reductor; debe hidrolizarse primero en glucosa y fructosa","Porque su temperatura de fusión es mayor a 200°C","Porque no contiene grupos amino en su estructura"], c:1, fb:"La sacarosa NO participa directamente porque no es un azúcar reductor puro. Debe descomponerse primero en glucosa y fructosa (por acidez o enzimas) para poder reaccionar con los aminoácidos." },
+  { tema:"grasa", texto:"¿Qué compuesto tóxico e irritante se libera cuando una grasa supera su punto de humeo?", opts:["Melanoidina","Acroleína","Ácido acético","Etanol"], c:1, fb:"Al superar el punto de humeo se produce degradación térmica de los triglicéridos con liberación de acroleína, un compuesto volátil tóxico e irritante para las mucosas. Por eso es crítico no superar ese punto al freír." },
+  { tema:"grasa", texto:"¿Cómo son los ácidos grasos saturados en cuanto a estructura y estado físico a temperatura ambiente?", opts:["Cadena lineal, tienden a ser sólidos","Cadena curvada con dobles enlaces, tienden a ser líquidos","Siempre líquidos, independientemente de la temperatura","Igual que los insaturados pero con mayor punto de fusión"], c:0, fb:"Los ácidos grasos saturados tienen cadenas lineales sin dobles enlaces → empaquetamiento compacto → tienden a ser sólidos (ej. manteca). Los insaturados tienen cadenas curvadas (dobles enlaces) y son líquidos (aceites)." },
+  { tema:"grasa", texto:"¿En qué consiste el efecto 'shortening' de las grasas en pastelería?", opts:["Aumentar la absorción de agua de la harina","Interrumpir la red de gluten para dar una textura quebradiza y friable","Acelerar la fermentación de la levadura","Potenciar el pardeamiento Maillard en la corteza"], c:1, fb:"El efecto shortening ocurre cuando la grasa recubre las partículas de harina, interrumpiendo la red de gluten. El resultado es una textura quebradiza y friable, característica de masas secas como galletitas o masas sablée." },
+  { tema:"grasa", texto:"¿Qué factores ambientales principales desencadenan el enranciamiento oxidativo de las grasas?", opts:["Frío, oscuridad y baja humedad","Luz, oxígeno y calor","Sal, acidez y presión","Solo el oxígeno; los demás factores no son determinantes"], c:1, fb:"El enranciamiento oxidativo se produce cuando el oxígeno, la luz y el calor actúan sobre los dobles enlaces de los ácidos grasos insaturados, generando radicales libres y compuestos de olor desagradable." },
+  { tema:"proteina", texto:"¿Qué tipo de reacción une a los aminoácidos para formar proteínas, y qué molécula se libera en ese proceso?", opts:["Síntesis por deshidratación, liberando agua (H₂O)","Oxidación, liberando CO₂","Fermentación, liberando etanol","Hidrólisis, incorporando agua"], c:0, fb:"Los aminoácidos se unen mediante el enlace peptídico: el grupo carboxilo (-COOH) reacciona con el grupo amino (-NH₂) del siguiente, liberando una molécula de agua. Este proceso se llama síntesis por deshidratación o condensación." },
+  { tema:"proteina", texto:"¿Cuál es la proteína mayoritaria de la clara de huevo y cuál es su función principal en pastelería?", opts:["Lisozima (3.4%), función antimicrobiana","Ovomucina (3.5%), aporta viscosidad y firmeza","Ovoalbúmina (54%), es el motor principal de la capacidad espumante","Conalbúmina (12%), fija metales como el hierro"], c:2, fb:"La ovoalbúmina representa el 54% de las proteínas de la clara. Es la única que se desnaturaliza fuertemente por acción mecánica (batido) y no solo por calor. Por eso es el motor principal de la capacidad espumante." },
+  { tema:"proteina", texto:"En la formación del gluten, ¿qué aportan las gliadinas y qué aportan las gluteninas?", opts:["Gliadinas: elasticidad · Gluteninas: extensibilidad","Gliadinas: extensibilidad · Gluteninas: elasticidad","Ambas aportan solo elasticidad","Gliadinas: color · Gluteninas: sabor"], c:1, fb:"Las gliadinas (globulares) aportan extensibilidad y plasticidad; las gluteninas (fibrosas) aportan elasticidad y fuerza. Ambas se enlazan mediante puentes disulfuro (-S-S-) al amasar, formando la red viscoelástica del gluten." },
+  { tema:"proteina", texto:"¿Qué es la desnaturalización de una proteína?", opts:["La ruptura del enlace peptídico que libera los aminoácidos individuales","La pérdida de la estructura tridimensional sin romper el enlace peptídico primario","La hidrólisis completa de la proteína en fragmentos menores","La formación de nuevos aminoácidos por acción del calor"], c:1, fb:"La desnaturalización implica la pérdida de las estructuras secundaria, terciaria y cuaternaria (el plegado 3D), sin romper el enlace peptídico. Puede ser causada por calor, batido mecánico o cambio de pH, exponiendo grupos hidrófobos." },
+  { tema:"agua", texto:"¿Qué expresa la actividad de agua (aw) de un alimento?", opts:["El porcentaje total de agua en el alimento","La disponibilidad del agua libre para participar en reacciones y ser aprovechada por microorganismos","La temperatura a la que hierve el agua dentro del alimento","La cantidad de agua ligada a proteínas y almidones"], c:1, fb:"La aw expresa qué fracción del agua está 'disponible', no ligada a macromoléculas. A menor aw, menor crecimiento microbiano y menor velocidad de reacciones. Determina la vida útil del alimento." },
+  { tema:"agua", texto:"¿Qué propiedad coligativa explica que agregar azúcar al agua baje su punto de congelación?", opts:["Ascenso ebulloscópico","Tensión superficial","Descenso crioscópico","Osmosis inversa"], c:2, fb:"El descenso crioscópico es la propiedad coligativa por la cual disolver solutos (azúcar, sal) en agua baja su punto de congelación. Esto se usa en helados y sorbetes para evitar cristales de hielo rígidos y lograr texturas cremosas." },
+  { tema:"agua", texto:"¿Qué tipo de enlace intermolecular forma el agua gracias a su naturaleza de dipolo eléctrico?", opts:["Enlace covalente","Enlace iónico","Puente de hidrógeno","Enlace peptídico"], c:2, fb:"La molécula de agua es un dipolo eléctrico (δ- en el oxígeno, δ+ en los hidrógenos), lo que le permite formar puentes de hidrógeno con otras moléculas de agua o con macromoléculas. Esto explica sus propiedades como solvente universal." },
+  { tema:"agua", texto:"¿En qué rango de pH debe estar el agua potable según el Código Alimentario Argentino (CAA)?", opts:["4.0 a 6.0","6.0 a 9.0","7.0 exactamente","9.0 a 11.0"], c:1, fb:"Según el CAA, el agua potable debe tener un pH entre 6.0 y 9.0. El pH del agua impacta en la coloración y la fermentación de las masas, afectando la actividad de levaduras y enzimas, y puede acelerar o inhibir la reacción de Maillard." },
+  { tema:"fermentacion", texto:"¿Cómo se clasifica biológicamente la levadura panadera Saccharomyces cerevisiae?", opts:["Bacteria procariota","Hongo unicelular eucariota","Alga microscópica","Virus de ARN"], c:1, fb:"Saccharomyces cerevisiae es un organismo unicelular eucariota, clasificado dentro del reino Fungi (hongos). Mide 4-8 micras pero tiene estructura celular compleja con núcleo definido, mitocondrias y aparato de Golgi." },
+  { tema:"fermentacion", texto:"Cuando la levadura trabaja sin oxígeno (fermentación anaeróbica), ¿qué productos genera?", opts:["Biomasa + CO₂ + Agua","Ácido láctico + CO₂","Alcohol (etanol) + CO₂","Ácido acético + H₂O"], c:2, fb:"En condiciones anaeróbicas la levadura realiza fermentación alcohólica produciendo etanol y CO₂. Es ineficiente para la célula pero fundamental para la panificación: el CO₂ leva la masa y el alcohol se evapora en el horno." },
+  { tema:"fermentacion", texto:"¿Cuál es la diferencia fundamental entre la masa madre y la levadura comercial?", opts:["La masa madre usa levadura seca; la levadura comercial usa levadura fresca","La masa madre es un monocultivo; la levadura comercial es una simbiosis","La masa madre es una simbiosis de levaduras silvestres + bacterias ácido-lácticas (BAL); la levadura comercial es un monocultivo puro","No hay diferencia real; solo cambia el proceso de producción industrial"], c:2, fb:"La masa madre es un ecosistema simbiótico de levaduras silvestres y bacterias ácido-lácticas (BAL). A diferencia de la levadura comercial (monocultivo), la masa madre añade fermentación láctica que modifica el sabor, la digestibilidad y la vida útil del pan." },
+  { tema:"fermentacion", texto:"¿A qué temperatura aproximada mueren las células de levadura en el horno?", opts:["Entre 35°C y 40°C","Entre 50°C y 60°C","Entre 75°C y 80°C","A partir de los 100°C"], c:1, fb:"La muerte celular de la levadura ocurre entre 50°C y 60°C. Antes (≈45°C) hay pico de actividad de amilasas sobre el almidón. A partir de 65°C comienzan a inactivarse las enzimas del sistema, y sobre 87°C se desnaturaliza y coagula la red de gluten." }
+];
+
+const LETTERS = ['A','B','C','D'];
+let idx=0, respuestas=[], respondida=false, correctas=0;
+
+document.getElementById('btn-start').onclick = () => {
+  document.getElementById('start-view').style.display='none';
+  document.getElementById('quiz-view').style.display='block';
+  document.getElementById('progress-wrap').style.display='flex';
+  document.getElementById('hero-section').style.display='none';
+  render();
+};
+
+function render(){
+  const q = preguntas[idx];
+  const total = preguntas.length;
+  const pct = Math.round(((idx+1)/total)*100);
+  document.getElementById('q-num').textContent = `Pregunta ${idx+1} de ${total}`;
+  document.getElementById('prog-label').textContent = `Pregunta ${idx+1} de ${total}`;
+  document.getElementById('prog-bar').style.width = pct+'%';
+  document.getElementById('prog-score').textContent = correctas+' ✓';
+  document.getElementById('q-tag').className = `q-tag tag-${q.tema}`;
+  document.getElementById('q-tag').textContent = TAG[q.tema];
+  document.getElementById('q-text').textContent = q.texto;
+  const opts = document.getElementById('opts');
+  opts.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const b = document.createElement('button');
+    b.className='opt-btn';
+    b.setAttribute('data-letter', LETTERS[i]);
+    b.textContent = o;
+    b.onclick = ()=>seleccionar(i);
+    opts.appendChild(b);
+  });
+  const fb = document.getElementById('fb');
+  fb.className='feedback-box';
+  fb.innerHTML='';
+  document.getElementById('btn-next').disabled=true;
+  document.getElementById('btn-next').textContent = idx===total-1?'Ver resultado →':'Siguiente →';
+  respondida=false;
+  // animate card
+  const card = document.getElementById('q-card');
+  card.style.animation='none';
+  void card.offsetHeight;
+  card.style.animation='slideIn 0.35s cubic-bezier(.4,0,.2,1)';
+}
+
+function seleccionar(i){
+  if(respondida)return;
+  respondida=true;
+  const q=preguntas[idx];
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach((b,j)=>{
+    b.disabled=true;
+    if(j===q.c)b.classList.add('correct');
+    else if(j===i&&i!==q.c)b.classList.add('wrong');
+  });
+  const ok = (i===q.c);
+  if(ok)correctas++;
+  respuestas.push(ok);
+  document.getElementById('prog-score').textContent = correctas+' ✓';
+  const fb=document.getElementById('fb');
+  fb.className='feedback-box '+(ok?'ok':'fail');
+  fb.innerHTML=`<span class="feedback-icon">${ok?'✓':'✗'}</span>${q.fb}`;
+  document.getElementById('btn-next').disabled=false;
+}
+
+document.getElementById('btn-next').onclick = ()=>{
+  if(!respondida)return;
+  idx++;
+  if(idx>=preguntas.length) mostrarResultado();
+  else render();
+};
+
+function mostrarResultado(){
+  document.getElementById('quiz-view').style.display='none';
+  document.getElementById('progress-wrap').style.display='none';
+  document.getElementById('result-view').style.display='block';
+  const total=preguntas.length;
+  const pct=Math.round((correctas/total)*100);
+  const aprobado = correctas>=12;
+  document.getElementById('r-icon').textContent = aprobado?'🏅':'📋';
+  document.getElementById('r-score').textContent = `${correctas}/${total}`;
+  document.getElementById('r-label').textContent = `${pct}% de respuestas correctas`;
+  let msg;
+  if(pct>=90) msg='¡Dominio excepcional del módulo! Calificación: ' + (7 + (pct - 60) * (3 / 40)).toFixed(1);
+  else if(pct>=70) msg='Aprobado con buen desempeño. Calificación: ' + (7 + (pct - 60) * (3 / 40)).toFixed(1);
+  else if(aprobado) msg='Aprobado. Calificación: ' + (7 + (pct - 60) * (3 / 40)).toFixed(1) + '. Te recomendamos repasar los errores.';
+  else msg='No llegaste al mínimo de aprobación. ¡Reintentá!';
+  document.getElementById('r-msg').textContent=msg;
+  const grid=document.getElementById('resumen-grid');
+  grid.innerHTML='';
+  preguntas.forEach((_,i)=>{
+    const c=document.createElement('div');
+    c.className='res-cell '+(respuestas[i]?'ok':'fail');
+    c.innerHTML=`<span class="res-cell-n">${i+1}</span>${respuestas[i]?'✓':'✗'}`;
+    grid.appendChild(c);
+  });
+  if(aprobado){
+    document.getElementById('btn-cert').style.display='inline-block';
+    // pre-fill date
+    const now=new Date();
+    const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('cert-date').textContent=`Emitido el ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}`;
+    
+    // Mapeo 60% -> 7, 100% -> 10
+    const notaNum = (7 + (pct - 60) * (3 / 40)).toFixed(1);
+    document.getElementById('cert-score-val').textContent=notaNum;
+    document.getElementById('cert-pct-val').textContent=`${pct}%`;
+  }
+}
+
+function mostrarCert(){
+  document.getElementById('result-view').style.display='none';
+  document.getElementById('cert-view').style.display='block';
+  document.getElementById('cert-name').focus();
+}
+
+function volverResultado(){
+  document.getElementById('cert-view').style.display='none';
+  document.getElementById('result-view').style.display='block';
+}
+
+function reiniciar(){
+  idx=0;respuestas=[];respondida=false;correctas=0;
+  document.getElementById('result-view').style.display='none';
+  document.getElementById('cert-view').style.display='none';
+  document.getElementById('progress-wrap').style.display='flex';
+  document.getElementById('quiz-view').style.display='block';
+  render();
+}
+</script>
+</body>
+</html>

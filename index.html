@@ -7779,7 +7779,10 @@
       });
       
       const p = Math.round(s / currentExamenQ.length * 100);
-      const aprobado = p >= 70;
+      
+      const isTDA = currentExamenData && (currentExamenData.tipo === 'interno_tda' || /TDA|Tecnolog/i.test(currentExamenData.titulo) || /TDA|Tecnolog/i.test(currentExamenData.desc));
+      const threshold = isTDA ? 60 : 70;
+      const aprobado = p >= threshold;
 
       try {
           if (userRole === 'alumno') {
@@ -7819,10 +7822,23 @@
       if (resModuloEle) resModuloEle.innerText = nombreModuloFull;
       
       const scoreCircle = document.getElementById('examen-score-circle');
-      const aprobado = p >= 70;
+      const threshold = isTDA ? 60 : 70;
+      const aprobado = p >= threshold;
+      
       if (scoreCircle) {
         scoreCircle.style.display = 'flex';
-        scoreCircle.innerText = p + "%";
+        scoreCircle.style.flexDirection = 'column';
+        
+        let scoreHTML = `<span style="font-size: 0.8em; opacity: 0.8;">${p}%</span>`;
+        if (isTDA && aprobado) {
+          // Mapeo 60% -> 7, 100% -> 10
+          const nota = (7 + (p - 60) * (3 / 40)).toFixed(1);
+          scoreHTML = `<span style="font-size: 1.25em; font-weight: bold;">${nota}</span>` + scoreHTML;
+        } else {
+          scoreHTML = `<span>${p}%</span>`;
+        }
+        
+        scoreCircle.innerHTML = scoreHTML;
         scoreCircle.style.borderColor = aprobado ? "var(--verde)" : "var(--rojo)";
       }
 
