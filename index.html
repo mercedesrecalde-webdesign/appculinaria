@@ -2464,6 +2464,10 @@
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg><span>Notificaciones</span><span class="badge hidden" id="notificaciones-badge">0</span></li>
+        <li onclick="showEncuesta()" id="nav-encuesta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg><span>Encuesta Meta-Análisis</span></li>
         <li onclick="showAnalytics()" id="nav-analytics" class="admin-only"><svg viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2">
              <line x1="18" y1="20" x2="18" y2="10" />
@@ -2863,6 +2867,72 @@
             </div>
           </div>
 
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-lg); margin-top: 24px; box-shadow: var(--sombra);">
+            <h3 style="margin-bottom: 16px;">📈 Comparativa de Desempeño Educativo (BPM vs TDA)</h3>
+            <div style="height: 300px; position: relative; margin-bottom: 40px;">
+              <canvas id="chart-examenes-comparativa"></canvas>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
+               <div style="height: 250px;">
+                  <h4 style="text-align:center; font-size:14px; margin-bottom:10px;">Aprobados vs Reprobados BPM</h4>
+                  <canvas id="chart-bpm-dist"></canvas>
+               </div>
+               <div style="height: 250px;">
+                  <h4 style="text-align:center; font-size:14px; margin-bottom:10px;">Aprobados vs Reprobados TDA</h4>
+                  <canvas id="chart-tda-dist"></canvas>
+               </div>
+            </div>
+          </div>
+
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-lg); margin-top: 24px; box-shadow: var(--sombra); border-top: 5px solid var(--violeta);">
+            <h3 style="margin-bottom: 16px;">💬 Meta-Análisis de Impacto (Encuestas Internas)</h3>
+            <div id="survey-analysis-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px;">
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Importancia de los Módulos</h4>
+                  <canvas id="chart-survey-importancia"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Impacto Profesional Percibido</h4>
+                  <canvas id="chart-survey-impacto"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Autonomía Técnica Ganada</h4>
+                  <canvas id="chart-survey-autonomia"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Comprensión de Conceptos</h4>
+                  <canvas id="chart-survey-comprension"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Ritmo del Curso</h4>
+                  <canvas id="chart-survey-ritmo"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Aplicabilidad Real</h4>
+                  <canvas id="chart-survey-aplicabilidad"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Claridad de Materiales</h4>
+                  <canvas id="chart-survey-claridad"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Innovación del Programa</h4>
+                  <canvas id="chart-survey-innovacion"></canvas>
+               </div>
+               <div style="height: 280px;">
+                  <h4 style="text-align:center; font-size:13px; color:var(--gris-oscuro);">Probabilidad de Recomendación</h4>
+                  <canvas id="chart-survey-recomendacion"></canvas>
+               </div>
+            </div>
+            <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+               <h4 style="font-size:15px; margin-bottom:15px; color:var(--violeta);">📝 Feedback Cualitativo (Anónimo)</h4>
+               <div id="survey-qualitative-list" style="display:flex; flex-direction:column; gap:10px; max-height:300px; overflow-y:auto; padding-right:10px;">
+                  <!-- Comentarios se inyectarán acá -->
+                  <p style="color:var(--gris); font-size:13px; text-align:center;">No hay comentarios cualitativos aún.</p>
+               </div>
+            </div>
+          </div>
+
           <!-- MÓDULO DE ENCUESTAS (Vecinos Vicente López) -->
           <div style="background: #fff; padding: 24px; border-radius: var(--radius-lg); margin-top: 24px; box-shadow: var(--sombra); border-top: 5px solid var(--naranja);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap: 10px;">
@@ -2885,6 +2955,107 @@
               <div id="encuestas-charts-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
                  <!-- Los gráficos se inyectarán acá dinámicamente según cuántas columnas tenga el CSV -->
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ENCUESTA -->
+      <div id="view-encuesta" class="hidden">
+        <header class="main-header"><button class="menu-toggle" onclick="toggleSidebar()">☰</button><button
+            class="back-btn" onclick="showDashboard()">← Inicio</button>
+          <h1>📝 Encuesta Meta-Análisis</h1>
+        </header>
+        <div class="page-content">
+          <div class="welcome-banner" style="background: linear-gradient(135deg, var(--celeste), #00ACC1);">
+            <div class="banner-content">
+              <h2>Tu opinión nos ayuda a crecer</h2>
+              <p>Esta encuesta es anónima. Tus respuestas nos servirán para mejorar la calidad educativa y entender el impacto de los módulos en tu carrera.</p>
+            </div>
+          </div>
+          
+          <div class="card" style="max-width: 800px; margin: 24px auto;">
+            <div id="encuesta-form-container">
+              <form id="form-satisfaccion" onsubmit="handleEnviarEncuesta(event)">
+                <div class="input-group">
+                  <label>1. ¿Qué importancia crees que tienen los módulos (BPM/TDA) en tu vida como estudiante? (1 al 10)</label>
+                  <input type="range" id="encuesta-importancia" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+                
+                <div class="input-group">
+                  <label>2. ¿Cómo crees que impactará lo aprendido en tu futuro ejercicio profesional?</label>
+                  <select id="encuesta-impacto" required>
+                    <option value="">Seleccione una opción...</option>
+                    <option value="Muy Alto">Impacto Muy Alto</option>
+                    <option value="Alto">Impacto Alto</option>
+                    <option value="Medio">Impacto Medio</option>
+                    <option value="Bajo">Impacto Bajo</option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label>3. ¿Qué nivel de autonomía técnica sentiste ganar durante el estudio? (1 al 10)</label>
+                  <input type="range" id="encuesta-autonomia" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+
+                <div class="input-group">
+                  <label>4. ¿Lograste comprender los conceptos fundamentales?</label>
+                  <div style="display:flex; gap:20px; margin-top:8px;">
+                    <label style="font-size:14px;"><input type="radio" name="encuesta-comprension" value="Si" required> Sí, totalmente</label>
+                    <label style="font-size:14px;"><input type="radio" name="encuesta-comprension" value="Parcialmente"> Parcialmente</label>
+                    <label style="font-size:14px;"><input type="radio" name="encuesta-comprension" value="No"> No, me costó mucho</label>
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label>5. ¿Qué nivel de dificultad sentiste respecto al ritmo del curso?</label>
+                  <select id="encuesta-ritmo" required>
+                    <option value="">Seleccione una opción...</option>
+                    <option value="Muy Rápido">Muy Rápido (me costó seguirlo)</option>
+                    <option value="Adecuado">Adecuado</option>
+                    <option value="Lento">Lento</option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label>6. ¿Qué tan aplicables ves los contenidos tecnológicos al mundo real? (1 al 10)</label>
+                  <input type="range" id="encuesta-aplicabilidad" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+
+                <div class="input-group">
+                  <label>7. ¿Cómo calificarías la claridad de los materiales teóricos presentados? (1 al 10)</label>
+                  <input type="range" id="encuesta-claridad" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+
+                <div class="input-group">
+                  <label>8. ¿Qué tan innovador te resultó el programa educativo propuesto? (1 al 10)</label>
+                  <input type="range" id="encuesta-innovacion" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+
+                <div class="input-group">
+                  <label>9. ¿Qué tan probable es que recomiendes este ecosistema de aprendizaje? (1 al 10)</label>
+                  <input type="range" id="encuesta-recomendacion" min="1" max="10" step="1" value="5" oninput="this.nextElementSibling.value = this.value">
+                  <output style="font-weight:bold; color:var(--violeta)">5</output>
+                </div>
+
+                <div class="input-group">
+                  <label>10. ¿Cómo te sentiste anímicamente o qué sugerencia tenés para el equipo?</label>
+                  <textarea id="encuesta-sentimiento" placeholder="Contanos tu experiencia..." rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top:16px;" id="btn-enviar-encuesta">ENVIAR ENCUESTA META-ANÁLISIS</button>
+              </form>
+            </div>
+            <div id="encuesta-success" class="hidden" style="text-align:center; padding:40px;">
+              <div style="font-size:48px; margin-bottom:20px;">✅</div>
+              <h3>¡Muchas gracias por completar la encuesta!</h3>
+              <p style="color:var(--gris);">Tus respuestas han sido enviadas de forma anónima.</p>
+              <button class="btn btn-secondary" style="margin-top:20px;" onclick="showDashboard()">Volver al Inicio</button>
             </div>
           </div>
         </div>
@@ -4388,7 +4559,7 @@
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
     function setNav(id) { document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active')); document.getElementById(id)?.classList.add('active'); }
-    function hideViews() { ['view-dashboard', 'view-curso', 'view-eventos', 'view-alumnos', 'view-perfil', 'view-mensajes', 'view-admin', 'view-analytics', 'view-notificaciones'].forEach(hide); }
+    function hideViews() { ['view-dashboard', 'view-curso', 'view-eventos', 'view-alumnos', 'view-perfil', 'view-mensajes', 'view-admin', 'view-analytics', 'view-notificaciones', 'view-encuesta'].forEach(hide); }
 
     // ========== DASHBOARD ==========
     async function showDashboard() {
@@ -4397,6 +4568,47 @@
       await renderCursos();
       await renderStats();
       await renderEventosPreview();
+    }
+    
+    // ========== ENCUESTA DE SATISFACCIÓN ==========
+    function showEncuesta() {
+      hideViews(); show('view-encuesta'); setNav('nav-encuesta'); closeSidebar();
+      document.getElementById('form-satisfaccion').reset();
+      hide('encuesta-success'); show('encuesta-form-container');
+    }
+
+    async function handleEnviarEncuesta(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-enviar-encuesta');
+      btn.disabled = true;
+      btn.textContent = 'ENVIANDO...';
+
+      const datos = {
+        importancia_formacion: parseInt(document.getElementById('encuesta-importancia').value),
+        impacto_profesional: document.getElementById('encuesta-impacto').value,
+        autonomia_tecnica: parseInt(document.getElementById('encuesta-autonomia').value),
+        comprension_conceptos: document.querySelector('input[name="encuesta-comprension"]:checked').value,
+        ritmo_dificultad: document.getElementById('encuesta-ritmo').value,
+        aplicabilidad_real: parseInt(document.getElementById('encuesta-aplicabilidad').value),
+        claridad_materiales: parseInt(document.getElementById('encuesta-claridad').value),
+        innovacion_programa: parseInt(document.getElementById('encuesta-innovacion').value),
+        probabilidad_recomendacion: parseInt(document.getElementById('encuesta-recomendacion').value),
+        comentarios_cualitativos: document.getElementById('encuesta-sentimiento').value
+      };
+
+      try {
+        const { error } = await db.from('encuestas_meta_analisis').insert([datos]);
+        if (error) throw error;
+
+        hide('encuesta-form-container');
+        show('encuesta-success');
+      } catch (err) {
+        console.error("Error enviando encuesta:", err);
+        alert("Hubo un problema al enviar la encuesta. Por favor, reintentá.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'ENVIAR ENCUESTA META-ANÁLISIS';
+      }
     }
 
     async function renderCursos() {
@@ -6482,9 +6694,135 @@
 
         document.getElementById('analytics-curso-insights').innerHTML = '<p style="color:var(--gris);">Selecciona un curso para ver el reporte comportamental.</p>';
 
+        await renderEducationalMetrics();
+
       } catch (e) {
         console.error('Error cargando analytics:', e);
       }
+    }
+
+    async function renderEducationalMetrics() {
+      try {
+        // 1. Obtener todas las evaluaciones para tipificarlas (BPM vs TDA)
+        const { data: evals } = await db.from('evaluaciones').select('id, titulo');
+        if (!evals) return;
+
+        const bpmIds = evals.filter(e => /BPM/i.test(e.titulo)).map(e => e.id);
+        const tdaIds = evals.filter(e => /TDA|Tecnolog/i.test(e.titulo)).map(e => e.id);
+
+        // 2. Obtener entregas
+        const { data: deliveries } = await db.from('entregas_evaluacion').select('evaluacion_id, nota, aprobado');
+        
+        const bpmNotas = deliveries?.filter(d => bpmIds.includes(d.evaluacion_id)).map(d => d.nota) || [];
+        const tdaNotas = deliveries?.filter(d => tdaIds.includes(d.evaluacion_id)).map(d => d.nota) || [];
+
+        // Render Comparison Chart
+        const ctxComp = document.getElementById('chart-examenes-comparativa').getContext('2d');
+        if (window.chartComp) window.chartComp.destroy();
+        window.chartComp = new Chart(ctxComp, {
+            type: 'bar',
+            data: {
+                labels: ['BPM', 'TDA'],
+                datasets: [{
+                    label: 'Promedio de Calificación (%)',
+                    data: [
+                        (bpmNotas.reduce((a, b) => a + b, 0) / (bpmNotas.length || 1)).toFixed(1),
+                        (tdaNotas.reduce((a, b) => a + b, 0) / (tdaNotas.length || 1)).toFixed(1)
+                    ],
+                    backgroundColor: ['#00BFA5', '#7B1FA2']
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+
+        // BPM Dist
+        const bpmAprob = bpmNotas.filter(n => n >= 70).length;
+        const bpmReprob = bpmNotas.length - bpmAprob;
+        renderAnalyticsPie('chart-bpm-dist', ['Aprobados', 'Reprobados'], [bpmAprob, bpmReprob], ['#4CAF50', '#F44336'], 'bpm');
+
+        // TDA Dist
+        const tdaAprob = tdaNotas.filter(n => n >= 60).length;
+        const tdaReprob = tdaNotas.length - tdaAprob;
+        renderAnalyticsPie('chart-tda-dist', ['Aprobados', 'Reprobados'], [tdaAprob, tdaReprob], ['#4CAF50', '#F44336'], 'tda');
+
+        // 3. Encuestas Meta-Análisis
+        const { data: surveys } = await db.from('encuestas_meta_analisis').select('*');
+        if (surveys && surveys.length > 0) {
+            // Helper para gráficos de barras 1-10
+            const processRangeData = (arr, key) => {
+                const results = [0,0,0,0,0,0,0,0,0,0];
+                arr.forEach(s => { if(s[key]) results[s[key] - 1]++; });
+                return results;
+            };
+
+            renderAnalyticsBar('chart-survey-importancia', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'importancia_formacion'), 'Frecuencia', '#FF9800', 'imp');
+            renderAnalyticsBar('chart-survey-autonomia', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'autonomia_tecnica'), 'Frecuencia', '#4CAF50', 'aut');
+            renderAnalyticsBar('chart-survey-aplicabilidad', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'aplicabilidad_real'), 'Frecuencia', '#2196F3', 'app');
+            renderAnalyticsBar('chart-survey-claridad', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'claridad_materiales'), 'Frecuencia', '#9C27B0', 'cla');
+            renderAnalyticsBar('chart-survey-innovacion', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'innovacion_programa'), 'Frecuencia', '#00BCD4', 'inn');
+            renderAnalyticsBar('chart-survey-recomendacion', ['1','2','3','4','5','6','7','8','9','10'], processRangeData(surveys, 'probabilidad_recomendacion'), 'Frecuencia', '#F44336', 'rec');
+
+            // Impacto (Pie)
+            const impactCounts = { 'Muy Alto': 0, 'Alto': 0, 'Medio': 0, 'Bajo': 0 };
+            surveys.forEach(s => { if(s.impacto_profesional) impactCounts[s.impacto_profesional]++; });
+            renderAnalyticsPie('chart-survey-impacto', Object.keys(impactCounts), Object.values(impactCounts), ['#1A237E', '#303F9F', '#3F51B5', '#7986CB'], 'impact');
+
+            // Ritmo (Pie)
+            const ritmoCounts = { 'Muy Rápido': 0, 'Adecuado': 0, 'Lento': 0 };
+            surveys.forEach(s => { if(s.ritmo_dificultad) ritmoCounts[s.ritmo_dificultad]++; });
+            renderAnalyticsPie('chart-survey-ritmo', Object.keys(ritmoCounts), Object.values(ritmoCounts), ['#C2185B', '#43A047', '#FDD835'], 'ritmo');
+
+            // Comprensión (Pie)
+            const compCounts = { 'Si': 0, 'Parcialmente': 0, 'No': 0 };
+            surveys.forEach(s => { if(s.comprension_conceptos) compCounts[s.comprension_conceptos]++; });
+            renderAnalyticsPie('chart-survey-comprension', ['Sí','Parcialmente','No'], Object.values(compCounts), ['#2E7D32', '#FBC02D', '#D32F2F'], 'comprension');
+
+            // Feedback Cualitativo
+            const qualList = document.getElementById('survey-qualitative-list');
+            const comments = surveys.filter(s => s.comentarios_cualitativos && s.comentarios_cualitativos.trim() !== "");
+            if (comments.length > 0) {
+                qualList.innerHTML = comments.map(c => `
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid var(--violeta); font-style: italic; font-size:13px;">
+                      "${c.comentarios_cualitativos}"
+                      <div style="font-size:10px; color:var(--gris); margin-top:5px; font-style: normal;">— Estudiante Anónimo (${new Date(c.created_at).toLocaleDateString()})</div>
+                    </div>
+                `).join('');
+            } else {
+                qualList.innerHTML = '<p style="color:var(--gris); font-size:13px; text-align:center;">No hay comentarios cualitativos aún.</p>';
+            }
+        }
+      } catch (err) {
+        console.error("Error en renderEducationalMetrics:", err);
+      }
+    }
+
+    function renderAnalyticsPie(id, labels, data, colors, key) {
+        const ctx = document.getElementById(id).getContext('2d');
+        if (window['chart'+key]) window['chart'+key].destroy();
+        window['chart'+key] = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    function renderAnalyticsBar(id, labels, data, label, color, key) {
+        const ctx = document.getElementById(id).getContext('2d');
+        if (window['chart'+key]) window['chart'+key].destroy();
+        window['chart'+key] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ label, data, backgroundColor: color }] },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
     }
 
     async function actualizarInsightsCurso() {
@@ -7942,7 +8280,17 @@
           const nota = entregasMap[ins.alumno_id];
           return {
             nombre: (al.apellido || '') + ', ' + (al.nombre || ''),
-            resultado: nota ? `${nota.nota}% - ${nota.aprobado ? 'APROBADO' : 'REPROBADO'}` : 'AUSENTE',
+            resultado: (() => {
+              if (!nota) return 'AUSENTE';
+              const isTDA = /TDA|Tecnolog/i.test(evalTitulo);
+              const pass = nota.nota >= (isTDA ? 60 : 70);
+              let val = `${nota.nota}%`;
+              if (isTDA && pass) {
+                const gr = (7 + (nota.nota - 60) * (3 / 40)).toFixed(1);
+                val = `Nota: ${gr} (${nota.nota}%)`;
+              }
+              return `${val} - ${pass ? 'APROBADO' : 'REPROBADO'}`;
+            })(),
             fecha: nota ? new Date(nota.fecha_entrega).toLocaleDateString('es-AR') : '-'
           };
         }).sort((a,b) => a.nombre.localeCompare(b.nombre));
