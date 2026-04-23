@@ -4741,7 +4741,7 @@
       }
 
       document.getElementById('cursos-lista').innerHTML = cursosToShow.length ? cursosToShow.map(c => {
-        const img = getCourseImage(c.nombre);
+        const img = c.imagen_url || getCourseImage(c.nombre);
         const defaultGrad = c.color === 'verde' ? 'linear-gradient(135deg, #2E7D32, #66BB6A)' :
                             c.color === 'violeta' ? 'linear-gradient(135deg, #6A1B9A, #AB47BC)' :
                             'linear-gradient(135deg, #00838F, #26C6DA)';
@@ -4801,6 +4801,7 @@
       'pasteleria profesional certificado': 'PASTELERIA PROFESIONAL CERTIFICADO.png',
       'pasteleria para eventos': 'PASTELERIA PARA EVENTOS.png',
       'especializacion en panaderia de autor y fingerfood corporativo': 'PANADERIA DE AUTOR.png',
+      'cocina sin gluten': 'COCINA LIBRE DE GLUTEN.png',
     };
 
     function getCourseImage(nombreCurso) {
@@ -7718,22 +7719,30 @@
 
       const codigo = document.getElementById('curso-codigo').value || Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      // Guardar curso con el ID del creador (docente o admin)
-      await db.from('cursos').insert({
-        nombre,
-        descripcion,
-        duracion,
-        emoji,
-        color,
-        tipo_curso: tipo,
-        codigo_inscripcion: codigo,
-        creador_id: currentUser.id  // Registrar quién creó el curso
-      });
+      try {
+        // Guardar curso con el ID del creador (docente o admin)
+        const { error } = await db.from('cursos').insert({
+          nombre,
+          descripcion,
+          duracion,
+          emoji,
+          color,
+          activo: true,
+          tipo_curso: tipo,
+          codigo_inscripcion: codigo,
+          creador_id: currentUser.id  // Registrar quién creó el curso
+        });
 
-      closeModal('curso');
-      await cargarCursos();
-      await showAdmin();
-      alert('✅ Curso creado');
+        if (error) throw error;
+
+        closeModal('curso');
+        await cargarCursos();
+        await showAdmin();
+        alert('✅ Curso creado: ' + nombre);
+      } catch (e) {
+        console.error('Error al crear curso:', e);
+        alert('❌ Error al crear el curso: ' + (e.message || 'Verificá los permisos de la base de datos.'));
+      }
     }
 
     function openEditCursoModal() {
