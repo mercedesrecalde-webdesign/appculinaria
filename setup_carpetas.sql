@@ -1,0 +1,3 @@
+ALTER TABLE public.contenido_teorico 
+  ADD COLUMN IF NOT EXISTS carpeta TEXT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS carpeta_visible BOOLEAN DEFAULT true;
