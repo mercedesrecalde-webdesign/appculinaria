@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marcar asistencia · Rainero Culinaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --verde:#76FF03; --verde-oscuro:#52B202; --turquesa:#00E5FF;
+    --fucsia:#D81B60; --violeta:#6A1B9A; --gris-oscuro:#1A1A1A; --gris:#666;
+    --gris-claro:#F5F5F5; --blanco:#FFF; --crema:#FAFAFA; --naranja:#FF9100;
+    --rojo:#E74C3C; --radius:12px; --radius-lg:20px; --transition:all .3s ease;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Open Sans',sans-serif;background:var(--crema);
+       color:var(--gris-oscuro);min-height:100vh;display:flex;flex-direction:column;
+       align-items:center;padding:28px 18px;text-align:center}
+  h1{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.4rem;margin:6px 0}
+  #sub{color:var(--gris);font-size:.95rem;margin-top:4px}
+  #reader{width:min(92vw,340px);margin:18px 0;border-radius:var(--radius-lg);overflow:hidden;
+          box-shadow:0 12px 40px rgba(106,27,154,.12)}
+  .btn{border:none;padding:12px 24px;border-radius:var(--radius);font-size:14px;font-weight:700;
+       cursor:pointer;font-family:'Montserrat',sans-serif;transition:var(--transition);
+       background:linear-gradient(135deg,var(--violeta),#4A148C);color:#fff}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(106,27,154,.35)}
+  #resultado{margin-top:20px;font-family:'Montserrat',sans-serif;font-size:1.3rem;
+             font-weight:800;min-height:1.4em}
+  .ok{color:var(--verde-oscuro)} .tarde{color:var(--naranja)} .err{color:var(--rojo)}
+</style>
+</head>
+<body>
+  <h1>Marcar mi asistencia</h1>
+  <div id="sub">Apuntá la cámara al código QR del aula.</div>
+  <div id="reader"></div>
+  <button id="reintentar" class="btn" style="display:none">Escanear de nuevo</button>
+  <div id="resultado"></div>
+
+<script>
+const SUPABASE_URL="https://dukgjrhyhyxvdqzhthje.supabase.co";
+const SUPABASE_KEY="sb_publishable_hdrC91CO7zGc3uoO2MsMVA_6K_CQmgd";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const me=JSON.parse(localStorage.getItem('culinaria_user')||'null');
+let lector=null,ocupado=false;
+
+(function init(){
+  if(!me||!me.id){$("resultado").className="err";
+    $("resultado").textContent="Iniciá sesión en la app primero.";return;}
+  arrancarCamara();
+})();
+
+function arrancarCamara(){
+  $("resultado").textContent="";$("resultado").className="";
+  $("reintentar").style.display="none";
+  lector=new Html5Qrcode("reader");
+  lector.start({facingMode:"environment"},{fps:10,qrbox:240},onScan)
+    .catch(e=>{$("resultado").className="err";
+      $("resultado").textContent="No pude abrir la cámara: "+e;});
+}
+
+async function onScan(texto){
+  if(ocupado)return;ocupado=true;
+  let payload;
+  try{payload=JSON.parse(texto);}catch{ocupado=false;return;}
+  if(!payload.s||!payload.t){ocupado=false;return;}
+  await lector.stop().catch(()=>{});
+  $("resultado").textContent="Registrando…";$("resultado").className="";
+  const {data,error}=await db.rpc("rainero_marcar_asistencia",
+    {p_sesion_id:payload.s,p_token:payload.t,p_alumno_id:me.id});
+  if(error){$("resultado").className="err";$("resultado").textContent="⚠ "+error.message;}
+  else if(data==="presente"){$("resultado").className="ok";$("resultado").textContent="✓ ¡Presente registrado!";}
+  else if(data==="tarde"){$("resultado").className="tarde";$("resultado").textContent="✓ Registrado como TARDE.";}
+  else if(data==="ya_registrado"){$("resultado").className="ok";$("resultado").textContent="Ya tenías la asistencia marcada hoy ✓";}
+  else{$("resultado").textContent="Registrado: "+data;}
+  $("reintentar").style.display="inline-block";
+  ocupado=false;
+}
+$("reintentar").onclick=arrancarCamara;
+</script>
+</body>
+</html>

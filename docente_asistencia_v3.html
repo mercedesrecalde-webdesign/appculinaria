@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asistencia QR · Docente · Rainero Culinaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root{
+    --verde:#76FF03; --verde-oscuro:#52B202; --turquesa:#00E5FF;
+    --fucsia:#D81B60; --violeta:#6A1B9A; --gris-oscuro:#1A1A1A; --gris:#666;
+    --gris-claro:#F5F5F5; --blanco:#FFF; --crema:#FAFAFA; --naranja:#FF9100;
+    --radius:12px; --radius-lg:20px; --transition:all .3s ease;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Open Sans',sans-serif;background:var(--crema);
+       color:var(--gris-oscuro);min-height:100vh;display:flex;flex-direction:column;
+       align-items:center;padding:28px 18px}
+  h1{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.5rem;margin:6px 0 18px}
+  select{font-family:'Open Sans',sans-serif;font-size:15px;padding:12px 16px;
+         border-radius:var(--radius);border:2px solid #e3e3e3;background:#fff;min-width:240px}
+  .btn{border:none;padding:12px 22px;border-radius:var(--radius);font-size:14px;
+       font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;transition:var(--transition)}
+  .btn-primary{background:linear-gradient(135deg,var(--violeta),#4A148C);color:#fff}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(106,27,154,.35)}
+  .btn-secondary{background:#fff;color:var(--violeta);border:2px solid var(--violeta)}
+  .btn-secondary:hover{background:var(--violeta);color:#fff}
+  .fila{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+  #qrbox{background:#fff;padding:26px;border-radius:var(--radius-lg);margin:22px 0;
+         box-shadow:0 12px 40px rgba(106,27,154,.12);display:none;text-align:center;
+         border:1px solid #f0eef5}
+  #qrbox canvas{display:block;margin:0 auto;border-radius:8px}
+  .cartel{font-family:'Montserrat',sans-serif;font-size:1.25rem;font-weight:700;margin-top:14px;
+          background:linear-gradient(135deg,var(--violeta),var(--fucsia));
+          -webkit-background-clip:text;background-clip:text;color:transparent}
+  #contador{font-size:.82rem;color:var(--turquesa);font-weight:700;margin-top:10px;
+            font-family:'Montserrat',sans-serif}
+  #estado{font-size:.9rem;color:var(--gris);min-height:1.2em;margin-top:10px;text-align:center}
+</style>
+</head>
+<body>
+  <h1>Tomar asistencia</h1>
+  <div class="fila">
+    <select id="curso"><option value="">Elegí el curso…</option></select>
+    <button id="abrir" class="btn btn-primary">Abrir asistencia</button>
+  </div>
+  <div id="qrbox">
+    <canvas id="qr"></canvas>
+    <div class="cartel" id="nombrecurso"></div>
+    <div id="contador"></div>
+  </div>
+  <div class="fila">
+    <button id="cerrar" class="btn btn-secondary" style="display:none">Cerrar asistencia y marcar ausentes</button>
+  </div>
+  <div id="estado"></div>
+
+<script>
+const SUPABASE_URL="https://dukgjrhyhyxvdqzhthje.supabase.co";
+const SUPABASE_KEY="sb_publishable_hdrC91CO7zGc3uoO2MsMVA_6K_CQmgd";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const me=JSON.parse(localStorage.getItem('culinaria_user')||'null');
+let sesionId=null,timer=null;
+
+(async function init(){
+  if(!me||!['docente','admin','administrativo'].includes(me.rol)){
+    $("estado").textContent="Ingresá como docente desde la app para usar esta pantalla.";
+    $("abrir").disabled=true;return;
+  }
+  const {data,error}=await db.from("cursos").select("id,nombre").order("id");
+  if(error){$("estado").textContent="No pude cargar los cursos: "+error.message;return;}
+  data.forEach(c=>{const o=document.createElement("option");
+    o.value=c.id;o.textContent=c.nombre;$("curso").appendChild(o);});
+})();
+
+$("abrir").onclick=async()=>{
+  const cursoId=$("curso").value;
+  if(!cursoId){$("estado").textContent="Elegí un curso primero.";return;}
+  $("estado").textContent="Abriendo…";
+  const {data,error}=await db.rpc("rainero_abrir_asistencia",
+    {p_curso_id:Number(cursoId),p_docente_id:me.id});
+  if(error){$("estado").textContent="Error: "+error.message;return;}
+  sesionId=data;
+  $("nombrecurso").textContent=$("curso").selectedOptions[0].textContent;
+  $("qrbox").style.display="block";
+  $("cerrar").style.display="inline-block";
+  $("estado").textContent="Asistencia abierta. El QR cambia solo cada 30 segundos.";
+  refrescarQR();
+  if(timer)clearInterval(timer);
+  timer=setInterval(refrescarQR,5000);
+};
+
+async function refrescarQR(){
+  if(!sesionId)return;
+  const {data:token,error}=await db.rpc("rainero_token_actual",
+    {p_sesion_id:sesionId,p_docente_id:me.id});
+  if(error){$("estado").textContent="Error al refrescar: "+error.message;return;}
+  const payload=JSON.stringify({s:sesionId,t:token});
+  QRCode.toCanvas($("qr"),payload,{width:300,margin:1,color:{dark:"#1A1A1A",light:"#FFFFFF"}});
+  const seg=30-(Math.floor(Date.now()/1000)%30);
+  $("contador").textContent=`Se renueva en ~${seg}s`;
+}
+
+$("cerrar").onclick=async()=>{
+  if(!sesionId)return;
+  if(!confirm("¿Cerrar la asistencia? Los inscriptos que no escanearon quedarán AUSENTES."))return;
+  const {data,error}=await db.rpc("rainero_cerrar_asistencia",
+    {p_sesion_id:sesionId,p_docente_id:me.id});
+  if(error){$("estado").textContent="Error al cerrar: "+error.message;return;}
+  clearInterval(timer);
+  $("qrbox").style.display="none";$("cerrar").style.display="none";
+  $("estado").textContent=`Asistencia cerrada. Se marcaron ${data} ausente(s).`;
+  sesionId=null;
+};
+</script>
+</body>
+</html>
