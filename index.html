@@ -9968,9 +9968,10 @@ var qrcode = function() {
         const todasNotasCurso = [...promedios, ...notasTPCurso];
         let promedioGeneral = todasNotasCurso.length > 0 ? (todasNotasCurso.reduce((a, b) => a + b, 0) / todasNotasCurso.length).toFixed(1) : 'N/A';
 
-        let comercialInsight = tasaAbandono > 15
-          ? `<strong style="color:var(--rojo);">⚠️ Riesgo Comercial Alto:</strong> La deserción proyectada está alta (${tasaAbandono.toFixed(1)}%). Considerar campañas de re-engagement, encuestas de satisfacción o tutorías para retener el alumnado.`
-          : `<strong style="color:var(--verde);">✅ Salud Comercial Positiva:</strong> La deserción es baja. Gran oportunidad para up-selling de próximos niveles o cursos paralelos.`;
+       const asistTxt = tasaAsistenciaCurso === null ? 'Sin registros de asistencia aún' : `${tasaAsistenciaCurso.toFixed(1)}%`;
+        let comercialInsight = alumnosEnRiesgo > 0
+          ? `<strong style="color:var(--rojo);">⚠️ Atención en retención:</strong> ${alumnosEnRiesgo} alumno(s) faltaron a más de la mitad de las clases dictadas (${totalClasesDadas}). Conviene contactarlos para evitar el abandono.`
+          : `<strong style="color:var(--verde-texto);">✅ Retención saludable:</strong> Ningún alumno superó el 50% de inasistencias. El grupo sostiene la cursada con regularidad.`;
 
         let socioInsight = promedioGeneral === 'N/A' || promedioGeneral >= 6.5
           ? `Alumnado en régimen. Ritmo de asimilación del contenido adecuado. Fomentar trabajos prácticos participativos.`
