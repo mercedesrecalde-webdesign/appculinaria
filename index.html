@@ -9773,38 +9773,6 @@ var qrcode = function() {
           procesarTextoCSV(configCSV.valor, true);
         }
 
-        // Nivel de Participación Global (Entregas de TP reales vs posibles)
-        const { data: trabajosPrevistos } = await db.from('trabajos_practicos').select('id, curso_id');
-        const countTrabajos = trabajosPrevistos ? trabajosPrevistos.length : 0;
-
-        if (countTrabajos > 0) {
-          // Calcular entregas posibles: por cada TP, contar alumnos inscriptos en su curso
-          const cursosTpIds = [...new Set(trabajosPrevistos.map(t => t.curso_id))];
-          const { data: inscripcionesTp } = await db.from('inscripciones').select('alumno_id, curso_id').in('curso_id', cursosTpIds);
-
-          let totalPosibles = 0;
-          if (inscripcionesTp) {
-            const alumnosPorCurso = {};
-            inscripcionesTp.forEach(i => {
-              alumnosPorCurso[i.curso_id] = (alumnosPorCurso[i.curso_id] || 0) + 1;
-            });
-            trabajosPrevistos.forEach(tp => {
-              totalPosibles += (alumnosPorCurso[tp.curso_id] || 0);
-            });
-          }
-
-          // Contar entregas reales
-          const { count: totalEntregas } = await db.from('entregas_tp').select('*', { count: 'exact', head: true });
-
-          if (totalPosibles > 0) {
-            const tasaParticipacion = ((totalEntregas || 0) / totalPosibles) * 100;
-            document.getElementById('analytics-participacion').textContent = `${Math.min(tasaParticipacion, 100).toFixed(1)}%`;
-          } else {
-            document.getElementById('analytics-participacion').textContent = 'N/A';
-          }
-        } else {
-          document.getElementById('analytics-participacion').textContent = 'N/A';
-        }
 
         document.getElementById('analytics-curso-insights').innerHTML = '<p style="color:var(--gris);">Selecciona un curso para ver el reporte comportamental.</p>';
 
