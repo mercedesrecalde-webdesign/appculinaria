@@ -9928,26 +9928,27 @@ var qrcode = function() {
           return;
         }
 
-        // Obtener Asistencia
-        let tasaAbandono = 0;
-        const alumnoIds = inscripciones.map(i => i.alumno_id);
-        const { data: asistenciasCursos } = await db.from('asistencias').select('usuario_id, estado').eq('curso_id', cursoId);
+        // Obtener Asistencia del curso (presentes + tardanzas sobre el total)
+        let tasaAsistenciaCurso = null;
+        let alumnosEnRiesgo = 0;
+        let totalClasesDadas = 0;
+        const { data: asistenciasCursos } = await db.from('asistencias').select('usuario_id, estado, fecha').eq('curso_id', cursoId);
 
-        let inasistenciasCronicas = 0;
         if (asistenciasCursos && asistenciasCursos.length > 0) {
-          const mapAsistenciasAlumnos = {};
+          const presentesCurso = asistenciasCursos.filter(a => a.estado === 'presente' || a.estado === 'tardanza').length;
+          tasaAsistenciaCurso = (presentesCurso / asistenciasCursos.length) * 100;
+          totalClasesDadas = new Set(asistenciasCursos.map(a => a.fecha)).size;
+          const faltasPorAlumno = {};
           asistenciasCursos.forEach(a => {
             if (a.estado === 'ausente') {
-              mapAsistenciasAlumnos[a.usuario_id] = (mapAsistenciasAlumnos[a.usuario_id] || 0) + 1;
+              faltasPorAlumno[a.usuario_id] = (faltasPorAlumno[a.usuario_id] || 0) + 1;
             }
           });
-
-          // Si un alumno tiene 3 o más faltas en el mismo mes, riesgo de deserción
-          Object.values(mapAsistenciasAlumnos).forEach(faltas => {
-            if (faltas >= 3) inasistenciasCronicas++;
-          });
-
-          tasaAbandono = (inasistenciasCronicas / totalAlumnos) * 100;
+          if (totalClasesDadas > 0) {
+            Object.values(faltasPorAlumno).forEach(faltas => {
+              if (faltas > totalClasesDadas / 2) alumnosEnRiesgo++;
+            });
+          }
         }
 
         // Obtener Calificaciones (Modulares + Notas de TP del curso)
