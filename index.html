@@ -9979,11 +9979,12 @@ var qrcode = function() {
 
         insightsContainer.innerHTML = `
           <div style="background: var(--gris-claro); border-left: 4px solid var(--violeta); padding: 16px; border-radius:4px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+           <div style="display:flex; justify-content:space-between; margin-bottom: 8px; flex-wrap:wrap; gap:8px;">
                <span>Alumnos Activos: <strong>${totalAlumnos}</strong></span>
+               <span>Asistencia: <strong>${asistTxt}</strong></span>
                <span>Promedio Curso: <strong>${promedioGeneral}</strong></span>
             </div>
-            <hr style="border:none; border-top:1px solid #ddd; margin: 10px 0;">
+                        <hr style="border:none; border-top:1px solid #ddd; margin: 10px 0;">
             <p style="font-size:14px; margin-bottom: 12px;"><strong>Análisis Académico / Sociológico</strong></p>
             <p style="font-size:13px; color:var(--gris-oscuro); line-height: 1.5; margin-bottom: 12px;">${socioInsight}</p>
             
